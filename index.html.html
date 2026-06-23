@@ -1,0 +1,2261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Label SKU Printer — CottonPassion</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml;utf8,
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="%230f1117"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="10.5"
+        fill="none"
+        stroke="%232e3350"
+        stroke-width="3"/>
+  <text x="50%"
+        y="50%"
+        dominant-baseline="middle"
+        text-anchor="middle"
+        font-family="Inter,Segoe UI,Arial,sans-serif"
+        font-size="28"
+        font-weight="700"
+        letter-spacing="-1"
+        fill="%23ffffff">
+    LS
+  </text>
+</svg>'>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22263a;
+  --border: #2e3350;
+  --accent: #4f7cff;
+  --accent2: #7c3aed;
+  --green: #10b981;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --text: #e8eaf0;
+  --muted: #8892b0;
+  --font: 'Inter', system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+/* Header */
+.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 50; }
+.logo { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+.logo span { color: var(--accent); }
+.header-sub { color: var(--muted); font-size: 13px; }
+.header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.icon-btn { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); cursor: pointer; font-size: 16px; transition: all .15s; }
+.icon-btn:hover { color: var(--text); border-color: var(--accent); background: rgba(79,124,255,.08); }
+.icon-btn.spin svg, .icon-btn:active { transform: scale(.94); }
+
+/* Layout */
+.main { display: grid; grid-template-columns: 320px 1fr; gap: 0; align-items: start; transition: grid-template-columns .25s ease; }
+.main.rail-collapsed { grid-template-columns: 0 1fr; }
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 53px; height: calc(100vh - 53px); overflow-y: auto; overflow-x: hidden; transition: padding .25s ease, opacity .2s ease; }
+.main.rail-collapsed .sidebar { padding-left: 0; padding-right: 0; opacity: 0; pointer-events: none; }
+.content { padding: 20px; min-width: 0; }
+/* Floating rail toggle */
+.rail-toggle { position: fixed; top: 64px; left: 296px; z-index: 60; width: 26px; height: 38px; display: flex; align-items: center; justify-content: center; background: var(--surface2); border: 1px solid var(--border); border-left: none; border-radius: 0 8px 8px 0; color: var(--muted); cursor: pointer; font-size: 13px; transition: left .25s ease, color .15s, background .15s; }
+.rail-toggle:hover { color: var(--text); background: var(--surface); }
+.main.rail-collapsed ~ .rail-toggle, .rail-toggle.collapsed { left: 0; }
+
+/* Steps nav */
+.steps { display: flex; gap: 4px; margin-bottom: 8px; }
+.step-btn { flex: 1; padding: 7px 4px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); border-radius: 8px; cursor: pointer; font-size: 12px; text-align: center; transition: all .15s; }
+.step-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.step-btn.done { border-color: var(--green); color: var(--green); }
+
+/* Cards */
+.card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+
+/* Upload zone */
+.upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 24px; text-align: center; cursor: pointer; transition: all .2s; }
+.upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(79,124,255,.06); }
+.upload-zone input { display: none; }
+.upload-icon { font-size: 28px; margin-bottom: 8px; }
+.upload-label { font-size: 13px; color: var(--muted); }
+.upload-label strong { color: var(--text); }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #3d6ef7; }
+.btn-success { background: var(--green); color: #fff; }
+.btn-success:hover { background: #059669; }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface2); color: var(--text); }
+.btn-red { background: var(--red); color: #fff; }
+.btn-yellow { background: var(--yellow); color: #000; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Table */
+.tbl-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: var(--surface); padding: 10px 12px; text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,.02); }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-ok { background: rgba(16,185,129,.15); color: var(--green); }
+.badge-err { background: rgba(239,68,68,.15); color: var(--red); }
+.badge-warn { background: rgba(245,158,11,.15); color: var(--yellow); }
+
+/* Preview grid */
+.preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.preview-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.preview-card canvas { width: 100%; display: block; }
+.preview-card-info { padding: 10px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
+.preview-card-info strong { color: var(--text); display: block; margin-bottom: 2px; }
+
+/* Summary */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Modal */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 600px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+.modal-header { padding: 20px 20px 0; font-size: 16px; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.modal-body { padding: 0 20px 20px; }
+.modal-preview { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+.modal-preview canvas { width: 100%; display: block; }
+/* Fix modal: label + slip side by side */
+.fix-preview-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.fix-preview-col { min-width: 0; }
+.fix-preview-label { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.fix-preview-col .modal-preview { margin-bottom: 0; }
+.fix-slip-text { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); padding: 10px 12px; font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 360px; overflow-y: auto; user-select: text; -webkit-user-select: text; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--text); }
+@media (max-width: 640px) { .fix-preview-row { grid-template-columns: 1fr; } }
+.close-btn { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; }
+.close-btn:hover { color: var(--text); }
+
+/* Form */
+.form-group { margin-bottom: 12px; }
+label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+input, select, textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 9px 12px; font-size: 13px; outline: none; transition: border .15s; font-family: var(--font); }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select option { background: var(--surface); }
+
+/* SKU DB editor */
+.db-search { position: relative; margin-bottom: 12px; }
+.db-search input { padding-left: 32px; }
+.db-search .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; }
+
+/* Tabs */
+.tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px; gap: 0; }
+.tab { padding: 10px 18px; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent; transition: all .15s; margin-bottom: -1px; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Progress */
+.progress-bar { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .3s; border-radius: 4px; }
+
+/* File pill */
+.file-pill { display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; }
+.file-pill .remove { margin-left: auto; background: none; border: none; color: var(--red); cursor: pointer; font-size: 14px; }
+
+/* Scrollable list */
+.scroll-list { max-height: 320px; overflow-y: auto; }
+
+/* Empty state */
+.empty { text-align: center; padding: 56px 24px; color: var(--muted); border: 1px dashed var(--border); border-radius: 14px; background: rgba(255,255,255,.01); }
+.empty .empty-icon { font-size: 44px; margin-bottom: 14px; opacity: .85; }
+.empty h3 { font-size: 16px; color: var(--text); font-weight: 600; margin-bottom: 6px; }
+.empty p { font-size: 13px; line-height: 1.5; max-width: 420px; margin: 0 auto 16px; }
+.empty .btn { margin: 0 auto; }
+
+/* Loading / skeleton states */
+.loading-wrap { text-align: center; padding: 48px 24px; color: var(--muted); }
+.spinner { width: 34px; height: 34px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 16px; animation: spin .8s linear infinite; }
+.loading-wrap .loading-title { font-size: 14px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+.loading-wrap .loading-sub { font-size: 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.skeleton { background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 37%, var(--surface2) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: 8px; }
+@keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.skeleton-row { height: 42px; margin-bottom: 8px; }
+
+/* Settings modal sections */
+.modal-wide { width: 720px; }
+.settings-section { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 18px; }
+.settings-section:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+.settings-section h4 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 4px; }
+.settings-section .hint { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+
+/* Right-sliding position panel */
+.pos-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); opacity: 0; visibility: hidden; transition: opacity .25s ease, visibility .25s; z-index: 70; }
+.pos-overlay.open { opacity: 1; visibility: visible; }
+.pos-panel { position: fixed; top: 0; right: 0; height: 100vh; width: 340px; max-width: 90vw; background: var(--surface); border-left: 1px solid var(--border); box-shadow: -8px 0 32px rgba(0,0,0,.4); transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); z-index: 71; display: flex; flex-direction: column; }
+.pos-panel.open { transform: translateX(0); }
+.pos-panel-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.pos-panel-body { padding: 20px; overflow-y: auto; flex: 1; }
+.pos-panel-body label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.pos-stepper { display: flex; align-items: stretch; gap: 6px; }
+.pos-stepper input { flex: 1; text-align: center; }
+.pos-stepper button { width: 40px; flex: none; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; font-size: 18px; cursor: pointer; transition: all .15s; }
+.pos-stepper button:hover { border-color: var(--accent); background: rgba(79,124,255,.1); }
+.pos-stepper button:active { transform: scale(.94); }
+
+/* Selected preview card */
+.preview-card.selected { outline: 2px solid var(--accent); outline-offset: 1px; box-shadow: 0 0 0 4px rgba(79,124,255,.18); }
+
+/* Multi-select toolbar */
+.select-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; position: sticky; top: 53px; z-index: 30; }
+.btn-sm { font-size: 12px; padding: 5px 11px; }
+
+/* Notification */
+.notif { position: fixed; bottom: 24px; right: 24px; padding: 12px 18px; border-radius: 10px; font-size: 13px; z-index: 9999; animation: slideUp .3s ease; }
+.notif-ok { background: var(--green); color: #fff; }
+.notif-err { background: var(--red); color: #fff; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.section-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.section-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+.highlight { color: var(--accent); }
+
+.text-right { text-align: right; }
+.mt8 { margin-top: 8px; }
+.mt16 { margin-top: 16px; }
+.mb8 { margin-bottom: 8px; }
+.inline-input { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 8px; font-size: 12px; width: 100%; }
+.inline-input:focus { outline: none; border-color: var(--accent); }
+.err-row td { background: rgba(239,68,68,.05); }
+.err-row:hover td { background: rgba(239,68,68,.08) !important; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Label<span>SKU</span> Printer</div>
+  <div class="header-sub">CottonPassion Shipping System</div>
+  <div class="header-actions">
+    <button class="icon-btn" id="settingsBtn" onclick="openSettings()" title="Settings — import SKU data & text positions" aria-label="Settings">⚙</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="steps">
+      <button class="step-btn active" onclick="goStep(1)" id="sbtn1">1·Upload</button>
+      <button class="step-btn" onclick="goStep(2)" id="sbtn2">2·Validate</button>
+      <button class="step-btn" onclick="goStep(3)" id="sbtn3">3·Preview</button>
+      <button class="step-btn" onclick="goStep(4)" id="sbtn4">4·Export</button>
+    </div>
+
+    <!-- File Upload -->
+    <div class="card">
+      <div class="card-title">📄 Upload PDF</div>
+      <div class="upload-zone" id="dropzone" onclick="document.getElementById('pdfInput').click()"
+           ondragover="e=>{e.preventDefault();this.classList.add('drag')}"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event)">
+        <input type="file" id="pdfInput" accept=".pdf" multiple onchange="handleFiles(this.files)">
+        <div class="upload-icon">📦</div>
+        <div class="upload-label"><strong>Drop PDF here</strong><br>or click to select</div>
+      </div>
+      <div id="fileList" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+      <div class="card-title">⚡ Actions</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-primary" onclick="runValidation()" id="validateBtn" disabled>🔍 Validate SKUs</button>
+        <button class="btn btn-ghost" onclick="goStep(3)" id="previewBtn" disabled>👁 Preview Labels</button>
+        <button class="btn btn-ghost" onclick="sortLabels()" id="sortBtn" disabled>↕ Sort Labels</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div id="sideStats" style="display:none;">
+      <div class="summary-grid">
+        <div class="stat-card"><div class="stat-num" id="stTotal">0</div><div class="stat-label">Labels</div></div>
+        <div class="stat-card"><div class="stat-num" id="stErrors" style="color:var(--red)">0</div><div class="stat-label">Errors</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="content" id="mainContent">
+    <!-- Step 1: Upload -->
+    <div id="step1">
+      <div class="section-title">Welcome to <span class="highlight">Label SKU Printer</span></div>
+      <div class="section-sub">Upload your shipping label PDF to get started.</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+        <div class="card">
+          <div style="font-size:24px;margin-bottom:8px;">📬</div>
+          <div style="font-weight:600;margin-bottom:4px;">Step 1 — Upload</div>
+          <div style="font-size:12px;color:var(--muted);">Upload your PDF containing shipping labels and packing slips.</div>
+        </div>
+        <div class="card">
+          <div style="font-size:24px;margin-bottom:8px;">🔍</div>
+          <div style="font-weight:600;margin-bottom:4px;">Step 2 — Validate</div>
+          <div style="font-size:12px;color:var(--muted);">System extracts SKUs and matches them against your product database.</div>
+        </div>
+        <div class="card">
+          <div style="font-size:24px;margin-bottom:8px;">📥</div>
+          <div style="font-weight:600;margin-bottom:4px;">Step 3 — Export</div>
+          <div style="font-size:12px;color:var(--muted);">Preview, sort, then download labelled PDFs and summary reports.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📋 Supported Formats</div>
+        <table>
+          <tr><th>Label Type</th><th>Text Position</th><th>Packing Slip</th><th>SKU Field</th></tr>
+          <tr><td>FedEx Ground</td><td>X 1.72" Y 3.65"</td><td>Temu</td><td>Contribution SKU</td></tr>
+          <tr><td>UPS Ground Saver</td><td>X 3.01" Y 1.42"</td><td>TikTok Shop</td><td>Seller SKU</td></tr>
+          <tr><td>USPS (all)</td><td>X 2.65" Y 1.7"</td><td>ShipStation</td><td>SKU</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Step 2: Validation -->
+    <div id="step2" style="display:none;">
+      <div class="section-title">SKU <span class="highlight">Validation</span></div>
+      <div class="section-sub">Reviewing all packing slips and matching SKUs against the database.</div>
+
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('valAll')">All Orders</button>
+        <button class="tab" onclick="showTab('valErrors')">⚠ Errors Only</button>
+        <button class="tab" onclick="showTab('valDB')">📋 SKU Database</button>
+      </div>
+
+      <div id="valAll">
+        <div id="validationTable"></div>
+      </div>
+      <div id="valErrors" style="display:none;">
+        <div id="errorTable"></div>
+      </div>
+      <div id="valDB" style="display:none;">
+        <div class="db-search">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search SKUs, products, sizes, colors…" oninput="filterDB(this.value)" id="dbSearch">
+        </div>
+        <div class="btn-group mb8">
+          <button class="btn btn-primary btn-sm" onclick="openAddSKU()">+ Add SKU</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportDBExcel()">⬇ Export Excel</button>
+        </div>
+        <div id="dbTable"></div>
+      </div>
+
+      <div class="mt16 btn-group" id="validationActions" style="display:none;">
+        <button class="btn btn-success" onclick="proceedToPreview()">✓ Proceed to Preview →</button>
+        <button class="btn btn-ghost" onclick="maybeRevalidate()" title="Re-check current shipments against the database (no re-upload needed)">↻ Re-check SKUs</button>
+        <button class="btn btn-ghost" onclick="goStep(1)" title="Add or replace the PDF, then validate again">＋ Upload another PDF</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Preview -->
+    <div id="step3" style="display:none;">
+      <div class="section-title">Label <span class="highlight">Preview</span></div>
+      <div class="section-sub">Review labels with product info written in. Verify placement before downloading.</div>
+      <div class="btn-group mb8">
+        <button class="btn btn-ghost" onclick="sortLabels()">↕ Sort by Product-Size-Color</button>
+        <button class="btn btn-primary" onclick="generateFinalPDF(false)">⬇ Labels only</button>
+        <button class="btn btn-ghost" onclick="generateFinalPDF(true)">⬇ Labels + slips</button>
+        <button class="btn btn-ghost" onclick="generateReport()">📊 Download Report</button>
+      </div>
+      <!-- Multi-select position toolbar -->
+      <div id="selectToolbar" class="select-toolbar">
+        <span id="selectCount" style="font-size:13px;color:var(--muted);">0 selected</span>
+        <span id="filterChip" style="font-size:12px;display:none;align-items:center;gap:6px;"></span>
+        <span style="flex:1;"></span>
+        <span style="font-size:12px;color:var(--muted);">Select &amp; filter:</span>
+        <button class="btn btn-ghost btn-sm" onclick="selectAllLabels()">All</button>
+        <button class="btn btn-ghost btn-sm" onclick="selectByCarrier('fedex')">FedEx</button>
+        <button class="btn btn-ghost btn-sm" onclick="selectByCarrier('ups')">UPS</button>
+        <button class="btn btn-ghost btn-sm" onclick="selectByCarrier('usps')">USPS</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Clear</button>
+        <button class="btn btn-primary btn-sm" id="adjustSelectedBtn" onclick="openPanelForSelection()" disabled>📐 Adjust selected</button>
+      </div>
+      <div id="previewGrid" class="preview-grid"></div>
+    </div>
+
+    <!-- Step 4: Export -->
+    <div id="step4" style="display:none;">
+      <div class="section-title">📥 <span class="highlight">Export</span></div>
+      <div class="section-sub">Download your completed files.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="card">
+          <div style="font-size:32px;margin-bottom:8px;">📄</div>
+          <div style="font-weight:600;margin-bottom:6px;">Labelled PDF</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Shipping labels with product info written on them. Choose whether to include the packing slips.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn btn-primary" onclick="generateFinalPDF(false)">⬇ Labels only</button>
+            <button class="btn btn-ghost" onclick="generateFinalPDF(true)">⬇ Labels + packing slips</button>
+          </div>
+        </div>
+        <div class="card">
+          <div style="font-size:32px;margin-bottom:8px;">📊</div>
+          <div style="font-weight:600;margin-bottom:6px;">Summary Report</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Product-wise totals, quantities, and parcel counts.</div>
+          <button class="btn btn-success" onclick="generateReport()">⬇ Download Report PDF</button>
+        </div>
+      </div>
+      <div id="reportPreview" class="mt16"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Collapsible rail toggle -->
+<button class="rail-toggle" id="railToggle" onclick="toggleRail()" title="Hide panel" aria-label="Toggle side panel">‹</button>
+
+<!-- Slide-out Position Panel (right side) -->
+<div id="posPanelOverlay" class="pos-overlay" onclick="closePositionPanel()"></div>
+<aside id="posPanel" class="pos-panel" aria-label="Text position">
+  <div class="pos-panel-head">
+    <div>
+      <div style="font-weight:700;font-size:15px;">📐 Text position</div>
+      <div id="posPanelSubtitle" style="font-size:12px;color:var(--muted);margin-top:2px;">No label selected</div>
+    </div>
+    <button class="close-btn" onclick="closePositionPanel()">✕</button>
+  </div>
+  <div class="pos-panel-body">
+    <div class="hint" id="posPanelHint" style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5;">
+      Adjusting moves the product text on <strong>this one label only</strong>. The preview updates as you type.
+    </div>
+
+    <label>X position (inches)</label>
+    <div class="pos-stepper">
+      <button onclick="nudgePos('x',-0.05)" title="Left">−</button>
+      <input type="number" step="0.01" id="ov_x" oninput="onOverrideInput()">
+      <button onclick="nudgePos('x',0.05)" title="Right">+</button>
+    </div>
+
+    <label style="margin-top:12px;">Y position (inches)</label>
+    <div class="pos-stepper">
+      <button onclick="nudgePos('y',-0.05)" title="Up">−</button>
+      <input type="number" step="0.01" id="ov_y" oninput="onOverrideInput()">
+      <button onclick="nudgePos('y',0.05)" title="Down">+</button>
+    </div>
+
+    <label style="margin-top:12px;">Font size (pt)</label>
+    <div class="pos-stepper">
+      <button onclick="nudgePos('fs',-0.5)">−</button>
+      <input type="number" step="0.5" id="ov_fs" oninput="onOverrideInput()">
+      <button onclick="nudgePos('fs',0.5)">+</button>
+    </div>
+
+    <div class="btn-group" style="margin-top:18px;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="resetOverride()" title="Use the carrier default position again">↺ Reset to default</button>
+    </div>
+
+    <div class="settings-section" style="margin-top:20px;">
+      <h4>Apply to others</h4>
+      <div class="hint" style="font-size:12px;color:var(--muted);margin-bottom:10px;">Copy this exact position to other labels.</div>
+      <button class="btn btn-ghost" style="width:100%;margin-bottom:8px;" onclick="applyOverrideToSameCarrier()">Apply to all <span id="ovCarrierName">same-carrier</span> labels</button>
+      <button class="btn btn-ghost" style="width:100%;" onclick="applyOverrideToAll()">Apply to every label</button>
+    </div>
+
+    <div class="settings-section" style="margin-top:20px;">
+      <h4>Carrier defaults</h4>
+      <div class="hint" style="font-size:12px;color:var(--muted);margin-bottom:10px;">Base position used by labels without a custom override. Open full settings (⚙) to edit these.</div>
+      <button class="btn btn-ghost" style="width:100%;" onclick="closePositionPanel();openSettings();">Open carrier default settings →</button>
+    </div>
+  </div>
+</aside>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal-bg" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <span>⚙ Settings</span>
+      <button class="close-btn" onclick="closeModal('settingsModal')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Import SKU Data -->
+      <div class="settings-section">
+        <h4>📊 Import SKU data</h4>
+        <div class="hint">Upload an Excel file (.xlsx) to replace the product database. It needs columns for SKU, Product, Size, and Color. <span id="skuDbCount" style="color:var(--green);"></span></div>
+        <div class="upload-zone" onclick="document.getElementById('xlsxInput').click()" style="padding:18px;">
+          <input type="file" id="xlsxInput" accept=".xlsx,.xls" onchange="importExcel(this)">
+          <div class="upload-icon">📂</div>
+          <div class="upload-label"><strong>Choose Excel file</strong><br>or drop SKU_DATA.xlsx here</div>
+        </div>
+        <div id="skuCount" class="mt8" style="font-size:12px;color:var(--green);"></div>
+      </div>
+
+      <!-- Text Positions -->
+      <div class="settings-section">
+        <h4>📐 Text positions</h4>
+        <div class="hint">Where the product line prints on each carrier's label, in inches. Changes apply instantly to the preview.</div>
+
+        <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;">FedEx</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div><label>X (in)</label><input type="number" step="0.01" id="pos_fedex_x" value="1.85" oninput="updatePos()"></div>
+          <div><label>Y (in)</label><input type="number" step="0.01" id="pos_fedex_y" value="3.75" oninput="updatePos()"></div>
+        </div>
+
+        <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;">UPS</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div><label>X (in)</label><input type="number" step="0.01" id="pos_ups_x" value="3.01" oninput="updatePos()"></div>
+          <div><label>Y (in)</label><input type="number" step="0.01" id="pos_ups_y" value="1.47" oninput="updatePos()"></div>
+        </div>
+
+        <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px;">USPS</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div><label>X (in)</label><input type="number" step="0.01" id="pos_usps_x" value="2.65" oninput="updatePos()"></div>
+          <div><label>Y (in)</label><input type="number" step="0.01" id="pos_usps_y" value="1.8" oninput="updatePos()"></div>
+        </div>
+
+        <label>Font size (pt)</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:6px;">
+          <div><label style="font-size:11px;">FedEx</label><input type="number" step="0.5" id="fs_fedex" value="7" oninput="updatePos()"></div>
+          <div><label style="font-size:11px;">UPS</label><input type="number" step="0.5" id="fs_ups" value="7.5" oninput="updatePos()"></div>
+          <div><label style="font-size:11px;">USPS</label><input type="number" step="0.5" id="fs_usps" value="8" oninput="updatePos()"></div>
+        </div>
+
+        <div class="btn-group" style="margin-top:12px;">
+          <button class="btn btn-ghost" onclick="undoPositions()" id="undoBtn" disabled title="Restore previous values">↩ Undo</button>
+          <button class="btn btn-ghost" onclick="resetPositions()">↺ Reset to defaults</button>
+          <button class="btn btn-primary" onclick="refreshPreview()">↻ Refresh preview</button>
+        </div>
+      </div>
+
+      <!-- Saved Presets -->
+      <div class="settings-section">
+        <h4>💾 Saved presets</h4>
+        <div class="hint">Save the current positions and font sizes so you can reuse them later.</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <input type="text" id="presetNameInput" placeholder="Preset name…" style="flex:1;">
+          <button class="btn btn-success" style="white-space:nowrap;" onclick="savePreset()">Save preset</button>
+        </div>
+        <div id="presetList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Error Fix Modal -->
+<div id="fixModal" class="modal-bg" style="display:none;">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <span>Fix SKU Error</span>
+      <button class="close-btn" onclick="closeModal('fixModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fix-preview-row">
+        <div class="fix-preview-col">
+          <div class="fix-preview-label">Shipping label</div>
+          <div class="modal-preview" id="fixPagePreview"></div>
+        </div>
+        <div class="fix-preview-col">
+          <div class="fix-preview-label">Packing slip <span style="color:var(--muted);font-weight:400;">(text is selectable — copy the Order ID)</span></div>
+          <div class="fix-slip-text" id="fixSlipPreview"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Page Info</label>
+        <div id="fixPageInfo" style="font-size:12px;color:var(--muted);padding:6px 0;"></div>
+      </div>
+      <div class="form-group">
+        <label>Extracted SKU (may be wrong)</label>
+        <input type="text" id="fixSKUInput" placeholder="Enter correct SKU">
+      </div>
+      <div id="fixSKUSuggestions" style="margin-bottom:12px;"></div>
+      <div class="form-group">
+        <label>Or map to existing product:</label>
+        <select id="fixProductSelect" onchange="prefillFromProduct()">
+          <option value="">— select product —</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div class="form-group">
+          <label>Product Name</label>
+          <input type="text" id="fixProduct" placeholder="e.g. Floral Bedspread">
+        </div>
+        <div class="form-group">
+          <label>Size</label>
+          <input type="text" id="fixSize" placeholder="e.g. King">
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <input type="text" id="fixColor" placeholder="e.g. Burgundy">
+        </div>
+      </div>
+      <div class="form-group">
+        <label><input type="checkbox" id="fixSaveDB"> Save this mapping to SKU database</label>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="applyFix()">✓ Apply Fix</button>
+        <button class="btn btn-ghost" onclick="closeModal('fixModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add SKU Modal -->
+<div id="addSKUModal" class="modal-bg" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <span>Add / Update SKU</span>
+      <button class="close-btn" onclick="closeModal('addSKUModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>SKU</label>
+        <input type="text" id="newSKU" placeholder="e.g. Encasement-Queen">
+      </div>
+      <div class="form-group">
+        <label>Product Name</label>
+        <input type="text" id="newProduct" placeholder="e.g. Encasement">
+      </div>
+      <div class="form-group">
+        <label>Size</label>
+        <input type="text" id="newSize" placeholder="e.g. Queen">
+      </div>
+      <div class="form-group">
+        <label>Color</label>
+        <input type="text" id="newColor" placeholder="e.g. White">
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="saveNewSKU()">Save SKU</button>
+        <button class="btn btn-ghost" onclick="closeModal('addSKUModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- Embedded SKU DATA ----
+const BUILTIN_SKU_DATA = [{"SKU": "Pillow Protector-Queen-2P", "Product": "2P Pillow Protector", "Size": "F/Q", "Color": "White"}, {"SKU": "WPP-2PC-20\"x38\"", "Product": "2P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "PP - 2P / KING", "Product": "2P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "PP / 2P // KING", "Product": "2P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "Pillow Protector 2P -King Size", "Product": "2P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "2P-Pillow Protector-King", "Product": "2P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "2P Pillow Protector King", "Product": "2P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "2P Pillow Protector-King-White", "Product": "2P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "WPP-2PC-20\"x28\"", "Product": "2P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "2P Pillow Protector_Qu", "Product": "2P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "PP / 2P // QUE", "Product": "2P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "2P-Pillow Protector-Queen", "Product": "2P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "2P Pillow Protector Queen", "Product": "2P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "2P Pillow Protector-Queen-White", "Product": "2P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "Pillow Protector 2P -Queen Size", "Product": "2P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "WPP-2PC-20\"x26\"", "Product": "2P Pillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "PP - 2P STANDARD", "Product": "2P Pillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "2 Pillow Protector Standard 20x26", "Product": "2P Pillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "2P Pillow Protector Standard", "Product": "2P Pillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "2P-Pillow Protector-Standard", "Product": "2P Pillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "2P Pillow Protector-Standard-White", "Product": "2P Pillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "2P-QLT-PIL-PRO-KING", "Product": "2P QPillow Protector", "Size": "King", "Color": "White"}, {"SKU": "2P QPillow Protector-King-White", "Product": "2P QPillow Protector", "Size": "King", "Color": "White"}, {"SKU": "2P QPillow Protector-King", "Product": "2P QPillow Protector", "Size": "King", "Color": "White"}, {"SKU": "2P-QLT-PIL-PRO-KING-FBM", "Product": "2P QPillow Protector", "Size": "King", "Color": "White"}, {"SKU": "2P-QLT-PIL-PRO-QUEEN", "Product": "2P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "QPillow Protector 2P Queen", "Product": "2P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "2P QPillow Protector-Queen-White", "Product": "2P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "2P QPillow Protector-Queen", "Product": "2P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "2P-QLT-PIL-PRO-QUEEN-FBM", "Product": "2P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "2P-QLT-PIL-PRO-STANDARD", "Product": "2P QPillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "2x Fitted Sheet-King-Grey", "Product": "2x Fitted Sheet", "Size": "King", "Color": "Grey"}, {"SKU": "WPP-4PC-20\"x38\"", "Product": "4P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "4P Pillow Protector_Ki", "Product": "4P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "4P-Pillow Protector-King", "Product": "4P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "4P Pillow Protector-King-White", "Product": "4P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "Pillow Protector 4P -King Size", "Product": "4P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "4P Piillow Protector-King-White", "Product": "4P Pillow Protector", "Size": "King", "Color": "White"}, {"SKU": "WPP-4PC-20\"x28\"", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "WPP-4PC-20\"x28\"-FBA", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "Pillow Protector - 20x28 - 4P", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4P Pillow Protector_Qu", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4P Pillow Protector-Queen-White", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4P Pillow Protector-Queen", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4P QPillow Protector-Queen-White", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "Pillow Protector Queen Pack of 4", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4 Pillow Protector Queen 20x28", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "Zippered Pack of 4 Pillow Protector", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4 Pillow Protector King 20x38", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4P-Pillow Protector-Queen", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "Pillow Protector 4P -Queen Size", "Product": "4P Pillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "WPP-4PC-20\"x26\"", "Product": "4P Pillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "4 Pillow Protector Standard 20x26", "Product": "4P Pillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "4P-Pillow Protector-Standard", "Product": "4P Pillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "4P Pillow Protector-Standard-White", "Product": "4P Pillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "4P-QLT-PIL-PRO-KING", "Product": "4P QPillow Protector", "Size": "King", "Color": "White"}, {"SKU": "4P-QLT-PILLOW-PRO-KING", "Product": "4P QPillow Protector", "Size": "King", "Color": "White"}, {"SKU": "4P QPillow Protector-King", "Product": "4P QPillow Protector", "Size": "King", "Color": "White"}, {"SKU": "4P QPillow Protector-King-White", "Product": "4P QPillow Protector", "Size": "King", "Color": "White"}, {"SKU": "QLT-WPP-4PC-20\"x28\"", "Product": "4P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4P-QLT-PIL-PRO-QUEEN", "Product": "4P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4P-QLT-PILLOW-PRO-QUEEN", "Product": "4P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4P QPillow Protector-Queen", "Product": "4P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "QPillow Protector 4P Queen", "Product": "4P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "Quilted Pillow Protector Queen 4P", "Product": "4P QPillow Protector", "Size": "Queen", "Color": "White"}, {"SKU": "4P-QLT-PIL-PRO-STANDARD", "Product": "4P QPillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "4P-QLT-PIL-PRO-STANDARD-FBM", "Product": "4P QPillow Protector", "Size": "Standard", "Color": "White"}, {"SKU": "8P-STP-PRO-QUEEN", "Product": "8xBStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "Blackout Fabric_1 Yard", "Product": "Blackout Fabric", "Size": "1 Yard", "Color": "White"}, {"SKU": "x1 Yard Pre Cut", "Product": "Blackout Fabric", "Size": "1 yard", "Color": "White"}, {"SKU": "Pack of 1 yard", "Product": "Blackout Fabric", "Size": "1 Yard", "Color": "White"}, {"SKU": "BLACKOUT-FABRIC-1-YARD", "Product": "Blackout Fabric", "Size": "1 Yard 110", "Color": "White"}, {"SKU": "BF-PC-1YD-55W-WHT", "Product": "Blackout Fabric", "Size": "1 Yard 55", "Color": "White"}, {"SKU": "x2 Yard Pre Cut", "Product": "Blackout Fabric", "Size": "2 Yard", "Color": "White"}, {"SKU": "2 Yards Pre Cut", "Product": "Blackout Fabric", "Size": "2 Yard", "Color": "White"}, {"SKU": "Pack of 2 yard", "Product": "Blackout Fabric", "Size": "2 Yard", "Color": "White"}, {"SKU": "2 Yard Pre Cut", "Product": "Blackout Fabric", "Size": "2 Yard", "Color": "White"}, {"SKU": "BLACKOUT-FABRIC-2-YARD", "Product": "Blackout Fabric", "Size": "2 Yard 110", "Color": "White"}, {"SKU": "II0''W // FABRIC-2yard", "Product": "Blackout Fabric", "Size": "2 Yard 110", "Color": "White"}, {"SKU": "BF-PC-2YD-55W-WHT", "Product": "Blackout Fabric", "Size": "2 Yard 55", "Color": "White"}, {"SKU": "II0''W-BLACKOUT/FABRIC-2YDS...", "Product": "Blackout Fabric", "Size": "2 Yards 110", "Color": "White"}, {"SKU": "x5/Yard/Pre/Cut-", "Product": "Blackout Fabric", "Size": "5 Yard", "Color": "White"}, {"SKU": "BLACKOUT-FABRIC-5-YARD", "Product": "Blackout Fabric", "Size": "5 Yard 110", "Color": "White"}, {"SKU": "BF-PC-5YD-55W-WHT", "Product": "Blackout Fabric", "Size": "5 Yard 55", "Color": "White"}, {"SKU": "BF-CBY-110W-BLK", "Product": "Blackout Fabric", "Size": "Yards 110", "Color": "Black"}, {"SKU": "BF-CBY-110W-BUR", "Product": "Blackout Fabric", "Size": "Yards 110", "Color": "Burgundy"}, {"SKU": "BF-CBY-110W-GRY", "Product": "Blackout Fabric", "Size": "Yards 110", "Color": "Grey"}, {"SKU": "BF-CBY-110W-NVY", "Product": "Blackout Fabric", "Size": "Yards 110", "Color": "Navy"}, {"SKU": "BLACKOUT-FABRIC-CUT-BY-YARD", "Product": "Blackout Fabric", "Size": "Yards 110", "Color": "White"}, {"SKU": "BF-CBY-55W-WHT", "Product": "Blackout Fabric", "Size": "Yards 55", "Color": "White"}, {"SKU": "BLACKOUT-FABRIC-CUT-BY-YARD-55''W", "Product": "Blackout Fabric", "Size": "Yards 55", "Color": "White"}, {"SKU": "Bodysuit - 5 Pack-12M-Boy Mix", "Product": "Bodysuit - 5 Pack", "Size": "12M", "Color": "Boy Mix"}, {"SKU": "BSkirt Protector-Cal King-Grey", "Product": "BSkirt Protector", "Size": "Cal King", "Color": "Grey"}, {"SKU": "WP-FTD-PRO-Cal King ", "Product": "BSkirt Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "BSkirt Protector_Ca", "Product": "BSkirt Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "WP-FTD-PRO-CAL-KING", "Product": "BSkirt Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "BSkirt Protector-Cal King-White", "Product": "BSkirt Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "BSkirt Protector_Ca_Wh", "Product": "BSkirt Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "B-SKIRT-PRO-FULL", "Product": "BSkirt Protector", "Size": "Full", "Color": "White"}, {"SKU": "BSkirt Protector-Full-White", "Product": "BSkirt Protector", "Size": "Full", "Color": "White"}, {"SKU": "BSkirt Protector-Full", "Product": "BSkirt Protector", "Size": "Full", "Color": "White"}, {"SKU": "WP-FTD-PRO-FULL", "Product": "BSkirt Protector", "Size": "Full ", "Color": "White"}, {"SKU": "BSkrit Protector-Full-White", "Product": "BSkirt Protector", "Size": "Full ", "Color": "White"}, {"SKU": "King Mattress Protector 18\" Deep Pocket Grey", "Product": "BSkirt Protector", "Size": "King", "Color": "Grey"}, {"SKU": "BSkirt Protector_Ki_Gr", "Product": "BSkirt Protector", "Size": "King", "Color": "Grey"}, {"SKU": "WP-FTD-PRO-KING", "Product": "BSkirt Protector", "Size": "King", "Color": "White"}, {"SKU": "WP-FTD-BPRO-WHT-KING", "Product": "BSkirt Protector", "Size": "King", "Color": "White"}, {"SKU": "BSkirt Protector-King-White", "Product": "BSkirt Protector", "Size": "King", "Color": "White"}, {"SKU": "BSkirt Protector_Ki", "Product": "BSkirt Protector", "Size": "King", "Color": "White"}, {"SKU": "Queen Mattress Protector 18\" Deep Pocket Grey", "Product": "BSkirt Protector", "Size": "Queen", "Color": "Grey"}, {"SKU": "BSkirt Protector_Qu_Gr", "Product": "BSkirt Protector", "Size": "Queen", "Color": "Grey"}, {"SKU": "WP-FTD-PRO-Queen", "Product": "BSkirt Protector", "Size": "Queen", "Color": "White"}, {"SKU": "BSkirt Protector_Qu_Wh", "Product": "BSkirt Protector", "Size": "Queen", "Color": "White"}, {"SKU": "BSkirt Protector_Qu", "Product": "BSkirt Protector", "Size": "Queen", "Color": "White"}, {"SKU": "WP-FTD-BPRO-WHT-QUEEN", "Product": "BSkirt Protector", "Size": "Queen", "Color": "White"}, {"SKU": "B-SKT/PRO-QUEN", "Product": "BSkirt Protector", "Size": "Queen", "Color": "White"}, {"SKU": "BSkirt Protector-Queen-White", "Product": "BSkirt Protector", "Size": "Queen", "Color": "White"}, {"SKU": "BSkirt ProtectorQueen-White", "Product": "BSkirt Protector", "Size": "Queen", "Color": "White"}, {"SKU": "Bskirt-Mat-Protector-Queen", "Product": "BSkirt Protector", "Size": "Queen", "Color": "White"}, {"SKU": "BSkirt--Queen-White", "Product": "BSkirt Protector", "Size": "Queen", "Color": "White"}, {"SKU": "BSkirt-Queen", "Product": "BSkirt Protector", "Size": "Queen", "Color": "White"}, {"SKU": "BSkirt Protector_Tw_Gr", "Product": "BSkirt Protector", "Size": "Twin", "Color": "Grey"}, {"SKU": "WP-FTD-PRO-TWIN", "Product": "BSkirt Protector", "Size": "Twin", "Color": "White"}, {"SKU": "B-SKT/PRO-TWIN", "Product": "BSkirt Protector", "Size": "Twin", "Color": "White"}, {"SKU": "WP-FTD-BPRO-WHT-TWIN", "Product": "BSkirt Protector", "Size": "Twin", "Color": "White"}, {"SKU": "BSkirt Protector-Twin-White", "Product": "BSkirt Protector", "Size": "Twin", "Color": "White"}, {"SKU": "Bskirt-Mat-Protector-Twin", "Product": "BSkirt Protector", "Size": "Twin", "Color": "White"}, {"SKU": "BSkirt Protector_Txl_Gr", "Product": "BSkirt Protector", "Size": "Twin XL", "Color": "Grey"}, {"SKU": "WP-FTD-PRO-TWIN-XL", "Product": "BSkirt Protector", "Size": "Twin XL", "Color": "White"}, {"SKU": "BSkirt Protector-Twin XL-White", "Product": "BSkirt Protector", "Size": "Twin XL", "Color": "White"}, {"SKU": "WL-TT5F-ZZLS", "Product": "BSkirt Protector", "Size": "", "Color": ""}, {"SKU": "BStrap Protector_Ca_Gr", "Product": "BStrap Protector", "Size": "Cal King", "Color": "Grey"}, {"SKU": "WP-PRO-CAL-KING-DMD", "Product": "BStrap Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "BSTP-PRO-CAL-KING", "Product": "BStrap Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "BStrap Protector-Cal King-White", "Product": "BStrap Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "White-BStarps-Protector Cal King", "Product": "BStrap Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "BStraps-Prtector- Cal King", "Product": "BStrap Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "WP-PRO-FULL-DMD", "Product": "BStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "8P-STP-PRO-FULL", "Product": "BStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "bSTP-FULL-WHT", "Product": "BStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "BStraps-Prtector-Full", "Product": "BStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "BStrap Protector-Full-White", "Product": "BStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "BStrap Protector_Wh_Qu", "Product": "BStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "BStrap Protector-Full", "Product": "BStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "White-BStarps-Protector Full", "Product": "BStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "Straps Protector-F- NS", "Product": "BStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "WP BStrap Protector-Full", "Product": "BStrap Protector", "Size": "Full", "Color": "White"}, {"SKU": "WP-PRO-FULL-WHT-DMD", "Product": "BStrap Protector", "Size": "Full ", "Color": "White"}, {"SKU": "WP-PRO-KING-DMD", "Product": "BStrap Protector", "Size": "King", "Color": "White"}, {"SKU": "BSTP/PRO-KING", "Product": "BStrap Protector", "Size": "King", "Color": "White"}, {"SKU": "B-STP/PRO-KING/", "Product": "BStrap Protector", "Size": "King", "Color": "White"}, {"SKU": "WP-PRO-KING-WHT-DMD", "Product": "BStrap Protector", "Size": "King", "Color": "White"}, {"SKU": "WP-PRO-CAL-KING-WHT-DMD", "Product": "BStrap Protector", "Size": "King", "Color": "White"}, {"SKU": "BStrap Protector-King-White", "Product": "BStrap Protector", "Size": "King", "Color": "White"}, {"SKU": "White-BStarps-Protector King", "Product": "BStrap Protector", "Size": "King", "Color": "White"}, {"SKU": "BStraps-Prtector-King", "Product": "BStrap Protector", "Size": "King", "Color": "White"}, {"SKU": "WP BStrap Protector-King", "Product": "BStrap Protector", "Size": "King", "Color": "White"}, {"SKU": "WP-PRO-QUEEN-DMD", "Product": "BStrap Protector", "Size": "Queen", "Color": "White"}, {"SKU": "WP-PRO-QUEEN-WHT-DMD", "Product": "BStrap Protector", "Size": "Queen", "Color": "White"}, {"SKU": "B-STP/PRO-Queen/", "Product": "BStrap Protector", "Size": "Queen", "Color": "White"}, {"SKU": "BStraps-Prtector-Queen", "Product": "BStrap Protector", "Size": "Queen", "Color": "White"}, {"SKU": "White-BStarps-Protector Queen", "Product": "BStrap Protector", "Size": "Queen", "Color": "White"}, {"SKU": "WP BStrap Protector-Queen", "Product": "BStrap Protector", "Size": "Queen", "Color": "White"}, {"SKU": "BStrap Protector-Queen-White", "Product": "BStrap Protector", "Size": "Queen", "Color": "White"}, {"SKU": "Straps Protector-Q- NS", "Product": "BStrap Protector", "Size": "Queen", "Color": "White"}, {"SKU": "BStrap Protector_Bl_Tw", "Product": "BStrap Protector", "Size": "Twin", "Color": "Navy"}, {"SKU": "WP-PRO-TWIN-DMD", "Product": "BStrap Protector", "Size": "Twin", "Color": "White"}, {"SKU": "WP-PRO-TWIN-WHT-DMD", "Product": "BStrap Protector", "Size": "Twin", "Color": "White"}, {"SKU": "BSTP/PRO-TWIN", "Product": "BStrap Protector", "Size": "Twin", "Color": "White"}, {"SKU": "Bstrap-Protectror_Tw", "Product": "BStrap Protector", "Size": "Twin", "Color": "White"}, {"SKU": "White-BStarps-Protector Twin", "Product": "BStrap Protector", "Size": "Twin", "Color": "White"}, {"SKU": "BStrap Protector-Twin-White", "Product": "BStrap Protector", "Size": "Twin", "Color": "White"}, {"SKU": "WP BStrap Protector-Twin", "Product": "BStrap Protector", "Size": "Twin", "Color": "White"}, {"SKU": "BStraps-Prtector-Twin", "Product": "BStrap Protector", "Size": "Twin", "Color": "White"}, {"SKU": "WP-PRO-TWIN-XL-DMD", "Product": "BStrap Protector", "Size": "Twin XL", "Color": "White"}, {"SKU": "WP-PRO-TWIN-XL-WHT-DMD", "Product": "BStrap Protector", "Size": "Twin XL", "Color": "White"}, {"SKU": "BStrap Protector_Txl", "Product": "BStrap Protector", "Size": "Twin XL", "Color": "White"}, {"SKU": "White-BStarps-Protector Twin XL", "Product": "BStrap Protector", "Size": "Twin XL", "Color": "White"}, {"SKU": "BStrap Protector-Twin XL-White", "Product": "BStrap Protector", "Size": "Twin XL", "Color": "White"}, {"SKU": "BSTP/PRO-TWIN/-XL", "Product": "BStrap Protector", "Size": "Twin XL ", "Color": "White"}, {"SKU": "Bstrap-Protectror_Tw-XL", "Product": "BStrap-Protectror", "Size": "Queen", "Color": "White"}, {"SKU": "Coin Bed spread-F/Q- Lavender", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Lavender"}, {"SKU": "Coin Bedspread-Cal King-Ochre", "Product": "Coin Bedspread", "Size": "Cal King", "Color": "Ochre"}, {"SKU": "Coin Bedspread-F/Q-Beige", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Beige"}, {"SKU": "Coin-Bedspread-F/Q-Black", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Black"}, {"SKU": "Coin Bedspread-F/Q-Burgundy", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Burgundy"}, {"SKU": "Coin Bedspread-F/Q-Charcoal", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Charcoal"}, {"SKU": "Coin Bedspread-F/Q-Cream", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Cream"}, {"SKU": "Coin Bedspread-F/Q- Crimson Red", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Crimson Red"}, {"SKU": "Coin Bedspread-F/Q-Emerald", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Emerald"}, {"SKU": "Coin Bedspread-F/Q- Navy", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Navy"}, {"SKU": "Coin Bedspread-F/Q-Navy", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Navy"}, {"SKU": "Coin Bedspread-F/Q-Ochre", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Ochre"}, {"SKU": "Coin Bedspread-F/Q-Rust", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Rust"}, {"SKU": "Coin Bedspread-F/Q-Sage Green", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Sage Green"}, {"SKU": "Coin Bedspread-F/Q-Silver", "Product": "Coin Bedspread", "Size": "F/Q", "Color": "Silver"}, {"SKU": "Coin Bedspread-King-Beige", "Product": "Coin Bedspread", "Size": "King", "Color": "Beige"}, {"SKU": "Coin Bedspread-King- Black", "Product": "Coin Bedspread", "Size": "King", "Color": "Black"}, {"SKU": "Coin Bedspread-King-Bluish Grey", "Product": "Coin Bedspread", "Size": "King", "Color": "Bluish Grey"}, {"SKU": "Coin Bedspread-King-Burgundy", "Product": "Coin Bedspread", "Size": "King", "Color": "Burgundy"}, {"SKU": "Coin Bedspread-King-Charcoal", "Product": "Coin Bedspread", "Size": "King", "Color": "Charcoal"}, {"SKU": "Coin Bedspread-King-Cream", "Product": "Coin Bedspread", "Size": "King", "Color": "Cream"}, {"SKU": "Coin Bedspread-King- Crimson Red", "Product": "Coin Bedspread", "Size": "King", "Color": "Crimson Red"}, {"SKU": "Coin Bedspread-King-Emerald", "Product": "Coin Bedspread", "Size": "King", "Color": "Emerald"}, {"SKU": "Coin Bedspread-King- Grey", "Product": "Coin Bedspread", "Size": "King", "Color": "Grey"}, {"SKU": "Coin Bedspread-King-Navy", "Product": "Coin Bedspread", "Size": "King", "Color": "Navy"}, {"SKU": "Coin Bedspread-King-Ochre", "Product": "Coin Bedspread", "Size": "King", "Color": "Ochre"}, {"SKU": "Coin Bedspread-King-Ochre", "Product": "Coin Bedspread", "Size": "King", "Color": "Ochre"}, {"SKU": "Coin Bedspread-King-Rust", "Product": "Coin Bedspread", "Size": "King", "Color": "Rust"}, {"SKU": "Coin Bedspread-King-Sage Green", "Product": "Coin Bedspread", "Size": "King", "Color": "Sage Green"}, {"SKU": "Coin Bedspread-King-Silver", "Product": "Coin Bedspread", "Size": "King", "Color": "Silver"}, {"SKU": "Coin Bedspread-King-White", "Product": "Coin Bedspread", "Size": "King", "Color": "White"}, {"SKU": "Coin Bedspread-Twin-Bluish Grey", "Product": "Coin Bedspread", "Size": "Twin", "Color": "Bluish Grey"}, {"SKU": "Coin Bedspread-Twin-Burgundy", "Product": "Coin Bedspread", "Size": "Twin", "Color": "Burgundy"}, {"SKU": "Coin Bedspread-Twin-Emerald", "Product": "Coin Bedspread", "Size": "Twin", "Color": "Emerald"}, {"SKU": "Coin Bedspread-Twin- Grey", "Product": "Coin Bedspread", "Size": "Twin", "Color": "Grey"}, {"SKU": "Coin Bedspread-Twin- Lavender", "Product": "Coin Bedspread", "Size": "Twin", "Color": "Lavender"}, {"SKU": "Coin Bedspread-Twin-Ochre", "Product": "Coin Bedspread", "Size": "Twin", "Color": "Ochre"}, {"SKU": "Coin Bedspread-Twin-Rust", "Product": "Coin Bedspread", "Size": "Twin", "Color": "Rust"}, {"SKU": "Coin Bedspread-Twin-Sage Green", "Product": "Coin Bedspread", "Size": "Twin", "Color": "Sage Green"}, {"SKU": "DuvetCover Set-Queen-Grey", "Product": "Duvet Cover Set", "Size": "Queen", "Color": "Grey"}, {"SKU": "WP-ENCASEMENT-CAL-KING", "Product": "Encasement", "Size": "Cal King", "Color": "White"}, {"SKU": "Encasement Mattress_Ca", "Product": "Encasement", "Size": "Cal King", "Color": "White"}, {"SKU": "ENCASEMENT--CAL KING", "Product": "Encasement", "Size": "Cal King", "Color": "White"}, {"SKU": "Encasement-Cal King", "Product": "Encasement", "Size": "Cal King", "Color": "White"}, {"SKU": "Encasement Mattress-Cal King-White", "Product": "Encasement", "Size": "Cal King", "Color": "White"}, {"SKU": "Encasement Mattress-Cal King", "Product": "Encasement", "Size": "Cal King", "Color": "White"}, {"SKU": "Mattress Encasement-Cal King", "Product": "Encasement", "Size": "Cal King", "Color": "White"}, {"SKU": "WP-ENCASEMENT-FULL", "Product": "Encasement", "Size": "Full", "Color": "White"}, {"SKU": "Encasement Mattress_Full", "Product": "Encasement", "Size": "Full", "Color": "White"}, {"SKU": "Encasement-Full", "Product": "Encasement", "Size": "Full", "Color": "White"}, {"SKU": "Mattress Encasement_Full", "Product": "Encasement", "Size": "Full", "Color": "White"}, {"SKU": "Encasement Mattress-Full-White", "Product": "Encasement", "Size": "Full", "Color": "White"}, {"SKU": "Encasement Mattress-Full XL-White", "Product": "Encasement", "Size": "Full", "Color": "White"}, {"SKU": "Mattress Encasement-Full", "Product": "Encasement", "Size": "Full", "Color": "White"}, {"SKU": "Encasement Mattress-Full", "Product": "Encasement", "Size": "Full", "Color": "White"}, {"SKU": "Encasement -Full", "Product": "Encasement", "Size": "Full", "Color": "White"}, {"SKU": "Encasemt-Full\"", "Product": "Encasement", "Size": "Full", "Color": "White"}, {"SKU": "WP-ENCASEMENT-FULL/XL", "Product": "Encasement", "Size": "Full XL", "Color": "White"}, {"SKU": "Mattress Encasement_Fxl", "Product": "Encasement", "Size": "Full XL", "Color": "White"}, {"SKU": "Encasement Mattress_Fxl", "Product": "Encasement", "Size": "Full XL", "Color": "White"}, {"SKU": "Encasement -Full XL", "Product": "Encasement", "Size": "Full XL", "Color": "White"}, {"SKU": "Encasement-Full Xl", "Product": "Encasement", "Size": "Full XL", "Color": "White"}, {"SKU": "ENCASEMENT--FULL XL", "Product": "Encasement", "Size": "Full XL", "Color": "White"}, {"SKU": "WP-ENCASEMENT-FULL-XL", "Product": "Encasement", "Size": "Full XL ", "Color": "White"}, {"SKU": "WP-ENCASEMENT-KING", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Encasemt-King Size", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Encasement Mattress-King-White", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Encasement Mattress_K", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Mattress Encasement_King", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Encasement Mattress_King", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Encasement Mattress_Ki", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Mattress Encasement-King", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Encasement Mattress-King", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Encasement -King", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Encasement-King", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Encasemt-King\"", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "Encasement-K", "Product": "Encasement", "Size": "King", "Color": "White"}, {"SKU": "WP-ENCASEMENT-QUEEN", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Mattress Encasement_Qu", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Encasement Mattress_Qu", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Encasement Mattress_Queen", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Encasement-Queen", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Encasement Mattress-Queen-White", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Encasement-Q", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Mattress Encasement-Queen", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Encasement Mattress-Queen", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Encasement -Queen", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Encasemt-Queen", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Encasemt-Queen\"", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "ENCASEMENT--QUEEN", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "Mat-Encasement-Queen-15\"inch", "Product": "Encasement", "Size": "Queen", "Color": "White"}, {"SKU": "WP-ENCASEMENT-TWIN", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "MAT/-ENC-/TWIN", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Floral-Bedspread-Twin", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Encasement Mattress_Tw", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Encasement-Twin", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Encasement Mattress-Twin-White", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Mattress Encasement_Tw", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Mattress Encasement-Twin", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Encasement Mattress-Twin", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Encasement -Twin", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Encasemt-Twin\"", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Encasement-T", "Product": "Encasement", "Size": "Twin", "Color": "White"}, {"SKU": "Mattress Encasement_Txl", "Product": "Encasement", "Size": "Twin XL", "Color": "Twin XL"}, {"SKU": "WP-ENCASEMENT-TWIN-XL", "Product": "Encasement", "Size": "Twin XL", "Color": "White"}, {"SKU": "ENCASEMENT--TWIN XL", "Product": "Encasement", "Size": "Twin XL", "Color": "White"}, {"SKU": "Encasement Mattress_Txl", "Product": "Encasement", "Size": "Twin XL", "Color": "White"}, {"SKU": "Encasement-Twin XL", "Product": "Encasement", "Size": "Twin XL", "Color": "White"}, {"SKU": "Zippered Mattress Encasement_Txl", "Product": "Encasement", "Size": "Twin XL", "Color": "White"}, {"SKU": "Encasement Mattress-Twin XL-White", "Product": "Encasement", "Size": "Twin XL", "Color": "White"}, {"SKU": "Fitted Sheet_Fu_Be", "Product": "Fitted Sheet", "Size": "Full", "Color": "Beige"}, {"SKU": "Fitted Sheet-Full-Beige", "Product": "Fitted Sheet", "Size": "Full", "Color": "Beige"}, {"SKU": "", "Product": "Fitted Sheet", "Size": "Full", "Color": "Cream"}, {"SKU": "Fitted Sheet_Fu_Cr", "Product": "Fitted Sheet", "Size": "Full", "Color": "Cream"}, {"SKU": "2x Fitted Sheet-Full-Cream", "Product": "Fitted Sheet", "Size": "Full", "Color": "Cream"}, {"SKU": "Fitted Sheet-Full-Cream", "Product": "Fitted Sheet", "Size": "Full", "Color": "Cream"}, {"SKU": "Fitted Sheet_Em_Fu", "Product": "Fitted Sheet", "Size": "Full", "Color": "Emarald"}, {"SKU": "FTD-SHT-EMR-FULL", "Product": "Fitted Sheet", "Size": "Full", "Color": "Emerald"}, {"SKU": "Fitted Sheet_Fu_Emerald", "Product": "Fitted Sheet", "Size": "Full", "Color": "Emerald"}, {"SKU": "Fitted Sheet_Fu_Emerld", "Product": "Fitted Sheet", "Size": "Full", "Color": "Emerald"}, {"SKU": "FTD-SHT-L-GRY-FULL", "Product": "Fitted Sheet", "Size": "Full", "Color": "L.Grey"}, {"SKU": "Fitted Sheet_Fu_Si", "Product": "Fitted Sheet", "Size": "Full", "Color": "L.Grey"}, {"SKU": "Fitted Sheet_Si_Fu", "Product": "Fitted Sheet", "Size": "Full", "Color": "L.Grey"}, {"SKU": "Fitted Sheet-Full-Navy", "Product": "Fitted Sheet", "Size": "Full", "Color": "Navy"}, {"SKU": "FTD-SHT-OCH-FULL", "Product": "Fitted Sheet", "Size": "Full", "Color": "Ochre"}, {"SKU": "Fitted Sheet-Full-Ochre", "Product": "Fitted Sheet", "Size": "Full", "Color": "Ochre"}, {"SKU": "FTD-SHT-RST-FULL", "Product": "Fitted Sheet", "Size": "Full", "Color": "Rust"}, {"SKU": "Fitted Sheet_Fu_Ru", "Product": "Fitted Sheet", "Size": "Full", "Color": "Rust"}, {"SKU": "Fitted Sheet-Full-Rust", "Product": "Fitted Sheet", "Size": "Full", "Color": "Rust"}, {"SKU": "FTD-SHT-SGREEN-FULL", "Product": "Fitted Sheet", "Size": "Full", "Color": "Sage Green"}, {"SKU": "Fitted Sheet-Full-Sage Green", "Product": "Fitted Sheet", "Size": "Full", "Color": "Sage Green"}, {"SKU": "FTD-SHTFTD-SHT-OCH--SKY-BLUE-FULL", "Product": "Fitted Sheet", "Size": "Full", "Color": "SBlue"}, {"SKU": "Fitted Sheet_Fu_Sky Blue", "Product": "Fitted Sheet", "Size": "Full", "Color": "SBlue"}, {"SKU": "Fitted Sheet_Fu_Spa blu", "Product": "Fitted Sheet", "Size": "Full", "Color": "Spa Blue"}, {"SKU": "Fitted Sheet_Fu_White", "Product": "Fitted Sheet", "Size": "Full", "Color": "White"}, {"SKU": "Fitted Sheet-King-Beige", "Product": "Fitted Sheet", "Size": "King", "Color": "Beige"}, {"SKU": "Fitted Sheet_Ki_Blk", "Product": "Fitted Sheet", "Size": "King", "Color": "Black"}, {"SKU": "2x Fitted Sheet-King-Black", "Product": "Fitted Sheet", "Size": "King", "Color": "Black"}, {"SKU": "fitted-sheet-K-BL", "Product": "Fitted Sheet", "Size": "King", "Color": "Black"}, {"SKU": "2x Fitted Sheet-King-Burgundy", "Product": "Fitted Sheet", "Size": "King", "Color": "Burgundy"}, {"SKU": "Fitted Sheet-King-Burgundy", "Product": "Fitted Sheet", "Size": "King", "Color": "Burgundy"}, {"SKU": "Fitted Sheet-King-Carrot Red", "Product": "Fitted Sheet", "Size": "King", "Color": "Carrot Red"}, {"SKU": "Fitted Sheet_Ki_Emerald", "Product": "Fitted Sheet", "Size": "King", "Color": "Emerald"}, {"SKU": "Fitted Sheet-King-Emerald", "Product": "Fitted Sheet", "Size": "King", "Color": "Emerald"}, {"SKU": "FTD-SHT-GRY-KING", "Product": "Fitted Sheet", "Size": "King", "Color": "Grey"}, {"SKU": "Fitted Sheet_Ki_Gr", "Product": "Fitted Sheet", "Size": "King", "Color": "Grey"}, {"SKU": "fitted-sheet-k-gr", "Product": "Fitted Sheet", "Size": "King", "Color": "Grey"}, {"SKU": "Fitted Sheet_Na_Ki", "Product": "Fitted Sheet", "Size": "King", "Color": "Navy"}, {"SKU": "FTD-SHT-NVY-KING", "Product": "Fitted Sheet", "Size": "King", "Color": "Navy"}, {"SKU": "Fitted Sheet-King-Navy", "Product": "Fitted Sheet", "Size": "King", "Color": "Navy"}, {"SKU": "2x Fitted Sheet-King-Navy", "Product": "Fitted Sheet", "Size": "King", "Color": "Navy"}, {"SKU": "Fitted Sheet-King-Ochre", "Product": "Fitted Sheet", "Size": "King", "Color": "Ochre"}, {"SKU": "Fitted Sheet_Ki_Oc", "Product": "Fitted Sheet", "Size": "King", "Color": "Ochre"}, {"SKU": "Fitted Sheet- King-Och", "Product": "Fitted Sheet", "Size": "King", "Color": "Ochre"}, {"SKU": "FTD-SHT-RST-KING", "Product": "Fitted Sheet", "Size": "King", "Color": "Rust"}, {"SKU": "2x Fitted Sheet-King-Rust", "Product": "Fitted Sheet", "Size": "King", "Color": "Rust"}, {"SKU": "Fitted Sheet-King-Rust", "Product": "Fitted Sheet", "Size": "King", "Color": "Rust"}, {"SKU": "Fitted Sheet_Ki_Sage green", "Product": "Fitted Sheet", "Size": "King", "Color": "Sage Green"}, {"SKU": "Fitted Sheet-King-Sage Green", "Product": "Fitted Sheet", "Size": "King", "Color": "Sage Green"}, {"SKU": "FTD-SHT-SKY-BLUE-KING", "Product": "Fitted Sheet", "Size": "King", "Color": "SBLue"}, {"SKU": "Fitted Sheet-King-SBlue", "Product": "Fitted Sheet", "Size": "King", "Color": "SBlue"}, {"SKU": "FTD-SHT-SPA-BLUE-KING", "Product": "Fitted Sheet", "Size": "King", "Color": "Spa Blue"}, {"SKU": "2x Fitted Sheet-King-Spa Blue", "Product": "Fitted Sheet", "Size": "King", "Color": "Spa Blue"}, {"SKU": "Fitted Sheet_Ki_Wh", "Product": "Fitted Sheet", "Size": "King", "Color": "White"}, {"SKU": "2x Fitted Sheet-King-White", "Product": "Fitted Sheet", "Size": "King", "Color": "White"}, {"SKU": "FTD-SHT-BGE-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Beige"}, {"SKU": "FTD-SHT-BLK-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Black"}, {"SKU": "Fitted Sheet_Qu_Blk", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Black"}, {"SKU": "2x Fitted Sheet-Queen-Black", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Black"}, {"SKU": "fitted-sheet-Q-BL", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Black"}, {"SKU": "Fitted Sheet-Queen-Black", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Black"}, {"SKU": "Fitted Sheet-Queen-Carrot Red", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Carrot Red"}, {"SKU": "FTD-SHT-EMR-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Emerald"}, {"SKU": "FTD-SHT-GRY-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Grey"}, {"SKU": "Fitted Sheet-Queen-Grey", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Grey"}, {"SKU": "fitted-sheet-q-gr", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Grey"}, {"SKU": "Fitted Sheet_Gr_Qu", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Grey"}, {"SKU": "2x Fitted Sheet-Queen-Grey", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Grey"}, {"SKU": "FTD-SHT-L-GRY-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "L.Grey"}, {"SKU": "2x Fitted Sheet-Queen-Silver", "Product": "Fitted Sheet", "Size": "Queen", "Color": "L.Grey"}, {"SKU": "FTD-SHT-LAV-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Lavender"}, {"SKU": "2x Fitted Sheet-Queen-Lavender", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Lavender"}, {"SKU": "Fitted Sheet_Na_Qu", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Navy"}, {"SKU": "Fitted sheet-Queen-Navy", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Navy"}, {"SKU": "Fitted Sheet_Qu_Na", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Navy"}, {"SKU": "FTD-SHT-OCH-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Ochre"}, {"SKU": "FTD-SHT-RST-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Rust"}, {"SKU": "Fitted sheet-Queen-Rust", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Rust"}, {"SKU": "FTD-SHT-SGE-GREEN-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Sage Green"}, {"SKU": "FTD-SHT-SGREEN-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Sage Green"}, {"SKU": "Fitted Sheet-Queen-Sage Green", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Sage Green"}, {"SKU": "FTD-SHT-SKY-BLUE-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "SBlue"}, {"SKU": "Fitted Sheet-Queen-Sky Blue", "Product": "Fitted Sheet", "Size": "Queen", "Color": "SBlue"}, {"SKU": "fitted-sheet-Q-Sb", "Product": "Fitted Sheet", "Size": "Queen", "Color": "SBlue"}, {"SKU": "FTD-SHT-SPA-BLUE-QUEEN", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Spa Blue"}, {"SKU": "2x Fitted Sheet-Queen-Spa Blue", "Product": "Fitted Sheet", "Size": "Queen", "Color": "Spa Blue"}, {"SKU": "Pack of 4 Pillowcase ( 20x30 ) White", "Product": "Fitted Sheet", "Size": "Queen", "Color": "White"}, {"SKU": "Fitted Sheet_Qu_Wh", "Product": "Fitted Sheet", "Size": "Queen", "Color": "White"}, {"SKU": "Fitted Sheet_Tw_Si", "Product": "Fitted Sheet", "Size": "Twin", "Color": "L.Grey"}, {"SKU": "Fitted Sheet-Twin-Ochre", "Product": "Fitted Sheet", "Size": "Twin", "Color": "Ochre"}, {"SKU": "FTD-SHT-RST-TWIN", "Product": "Fitted Sheet", "Size": "Twin", "Color": "Rust"}, {"SKU": "Fitted Sheet-Twin-Rust", "Product": "Fitted Sheet", "Size": "Twin", "Color": "Rust"}, {"SKU": "FTD-SHT-SGREEN-TWIN", "Product": "Fitted Sheet", "Size": "Twin", "Color": "Sage Green"}, {"SKU": "FTD-SHT-SGE-GREEN-TWIN", "Product": "Fitted Sheet", "Size": "Twin", "Color": "Sage Green"}, {"SKU": "Fitted Sheet_Sa_Tw", "Product": "Fitted Sheet", "Size": "Twin", "Color": "Sage Green"}, {"SKU": "Fitted Sheet_Tw_Sage Green", "Product": "Fitted Sheet", "Size": "Twin", "Color": "Sage Green"}, {"SKU": "FTD-SHT-SPA-BLUE-TWIN", "Product": "Fitted Sheet", "Size": "Twin", "Color": "Spa Blue"}, {"SKU": "Fleece Blanket_Fu_Bla", "Product": "Fleece Blanket", "Size": "F/Q", "Color": "Black"}, {"SKU": "Fleece Blanket-F/Q-Plum", "Product": "Fleece Blanket", "Size": "F/Q", "Color": "Plum"}, {"SKU": "Fleece Blanket-Throw-Silver", "Product": "Fleece Blanket", "Size": "Throw", "Color": "Silver"}, {"SKU": "Fleece Blanket_Tw_Co", "Product": "Fleece Blanket", "Size": "Twin", "Color": "Coffee"}, {"SKU": "Fleece Blanket_Tw_Na", "Product": "Fleece Blanket", "Size": "Twin", "Color": "Navy"}, {"SKU": "BEDSPREAD-MOC BROWN-KING", "Product": "Floral Bedpsread", "Size": "King", "Color": "Mocha Brown"}, {"SKU": "Floral Bedspread-King-Buckthorn-Brown", "Product": "Floral Bedslpread", "Size": "King", "Color": "Buckthorn Brown"}, {"SKU": "Floral Bedspread-King-Burgundy", "Product": "Floral Bedslpread", "Size": "King", "Color": "Burgundy"}, {"SKU": "Floral Bedspread-King-Olive-Green", "Product": "Floral Bedslpread", "Size": "King", "Color": "Olive Green"}, {"SKU": "Floral Bedspread-King-Plum", "Product": "Floral Bedslpread", "Size": "King", "Color": "Plum"}, {"SKU": "Floral Bedspread-King-USage-Green", "Product": "Floral Bedslpread", "Size": "King", "Color": "Sage Green"}, {"SKU": "Floral Bedspread-Cal King-Beige", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Beige"}, {"SKU": "Floral Bedspread- Cal King-Black", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Black"}, {"SKU": "Floral Bedspread-Cal King-Black", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Black"}, {"SKU": "Floral-Burgundy-Cal King", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Burgundy"}, {"SKU": "Floral Bedspread-Cal King-Charcoal", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Charcoal"}, {"SKU": "Floral-Bedspread-Cal King-Cream", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Cream"}, {"SKU": "Floral Bedspread-Cal King-Cream", "Product": "Floral Bedspread", "Size": "Cal king", "Color": "Cream"}, {"SKU": "Floral Bedspread-Cal King-Emerald", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Emerald"}, {"SKU": "Floral Bedspread -Cal King-Emerald", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Emerald"}, {"SKU": "Floral-Bedspread-Cal King-Grey", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Grey"}, {"SKU": "Floral Bedspread-Cal King-Grey", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Grey"}, {"SKU": "Floral Bedspread-_CK_Navy", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Navy"}, {"SKU": "Floral Bedspread-Cal-King-Navy", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Navy"}, {"SKU": "Floral Bedspread-Cal King-Navy", "Product": "Floral Bedspread", "Size": "Cal king", "Color": "Navy"}, {"SKU": "Floral Bedspread- Cal King-Navy", "Product": "Floral Bedspread", "Size": "Cal king", "Color": "Navy"}, {"SKU": "Floral Bedspread-Cal King-Ochre", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Ochre"}, {"SKU": "Floral Bedspread-Cal King-Olive Green", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Olive Green"}, {"SKU": "Floral Bedspread-Cal King-Peach", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Peach"}, {"SKU": "Floral Bedspread-Cal King-Purple", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Purple"}, {"SKU": "Floral Bedspread-Cal King-Rust", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Rust"}, {"SKU": "Floral Bedspread-Cal King-Sage Green", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Sage Green"}, {"SKU": "Floral Bedspread-Cal King-Washed Blue", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "Washed Blue"}, {"SKU": "Floral Bedspread-Cal King-White", "Product": "Floral Bedspread", "Size": "Cal King", "Color": "White"}, {"SKU": "BEDSPREAD-BGE-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Beige"}, {"SKU": "Floral Bedspread-Beige-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Beige"}, {"SKU": "Floral Bedspread-F/Q-Beige", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Beige"}, {"SKU": "FLORAL BEDSPREAD--BEIGE-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Beige"}, {"SKU": "BEDSPREAD-BLK-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Black"}, {"SKU": "Floral Bedspread-F/Q-Black", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Black"}, {"SKU": "Floral Bedspread_F/Q_blk", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Black"}, {"SKU": "Floral Bedspread-Full/Queen-Black", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Black"}, {"SKU": "Floral Bedspread-Black-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Black"}, {"SKU": "FloralBedspread-BLACK-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Black"}, {"SKU": "FloralBedspread-Bluish Grey-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Bluish Grey"}, {"SKU": "Floral-Bluish Grey-Full/Queen", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Bluish Grey"}, {"SKU": "Floral Bedspread-F/Q-Bluish-Grey", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Bluish Grey"}, {"SKU": "Floral Bedspread -Full/Queen-Bluish Grey", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Bluish Grey"}, {"SKU": "BEDSPREAD-BUCKTHORN BROWN-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Buckthorn Brown"}, {"SKU": "Floral Bedspread-F/Q-Buckthorn-Brown", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Buckthorn Brown"}, {"SKU": "Floral Bedspread-F/Q-Buckthorn Brown", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Buckthorn Brown"}, {"SKU": "Floral Bedspread_Fu_Bur", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Burgundy"}, {"SKU": "BEDSPREAD-BUR-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Burgundy"}, {"SKU": "Floral-Bedspread-F/Q-Burgundy", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Burgundy"}, {"SKU": "Floral Bedspread -Full/Queen-Burgundy", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Burgundy"}, {"SKU": "Floral Bedspread-F/Q-Burgundy", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Burgundy"}, {"SKU": "Floral Bedspread-Burgundy-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Burgundy"}, {"SKU": "FLORAL-BEDSPREAD-BURGUNDY-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Burgundy"}, {"SKU": "Floral-Burgundy-Full/Queen", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Burgundy"}, {"SKU": "Floral-F/Q-Burgundy", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Burgundy"}, {"SKU": "BEDSPREAD-CHR-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Charcoal"}, {"SKU": "Floral Bedspread -Full/Queen-Charcoal", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Charcoal"}, {"SKU": "Floral Bedspread_Fu_Charcoal", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Charcoal"}, {"SKU": "FloralBedspread-CHARCOAL-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Charcoal"}, {"SKU": "Floral Bedspread-F/Q-Charcoal", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Charcoal"}, {"SKU": "Floral Bedspread-Charcoal-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Charcoal"}, {"SKU": "BEDSPREAD-CRM-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Cream"}, {"SKU": "Floral Bedspread-F/Q-Cream", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Cream"}, {"SKU": "Floral-Bedspread-F/Q-Cream", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Cream"}, {"SKU": "Floral Bedspread-Cream-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Cream"}, {"SKU": "FloralBedspread-CREAM-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Cream"}, {"SKU": "Floral Bedspread -Full/Queen-Cream", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Cream"}, {"SKU": "Floral bedspread-Crimson red-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Crimson Red"}, {"SKU": "BEDSPREAD-EMR-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Emerald"}, {"SKU": "Floral-Bedspread-F/Q-Emerald", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Emerald"}, {"SKU": "Floral Bedspread-F/Q-Emerald", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Emerald"}, {"SKU": "FloralBedspread-EMERALD--F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Emerald"}, {"SKU": "BEDSPREAD-GRY-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Grey"}, {"SKU": "BEDSPREAD-L-GRY-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Grey"}, {"SKU": "BEDSPREAD-BLUISH GRAY-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Grey"}, {"SKU": "BEDSPREAD-BLU GRY-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Grey"}, {"SKU": "Floral Bedspread -Full/Queen-Grey", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Grey"}, {"SKU": "Floral Bedspread-F/Q-Bluish Grey", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Grey"}, {"SKU": "Floral Bedspread-F/Q-Grey", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Grey"}, {"SKU": "FloralBedspread-GREY--F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Grey"}, {"SKU": "Floral Bedspread_Fu_lav", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Lavender"}, {"SKU": "BEDSPREAD-LAV-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Lavender"}, {"SKU": "Floral Bedspread-F/Q-Lavender", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Lavender"}, {"SKU": "BEDSPREAD-MOC BROWN-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Mocha Brown"}, {"SKU": "Floral-Bedspread-F/Q-Mocha Brown", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Mocha Brown"}, {"SKU": "Floral Bedspread-F/Q-Mocha Brown", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Mocha Brown"}, {"SKU": "FloralBedspread-F/Q-Mocha Brown", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Mocha Brown"}, {"SKU": "FloralBedspread-Mocha Brown-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Mocha Brown"}, {"SKU": "Floral Bedspread-Mocha Brown-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Mocha Brown"}, {"SKU": "Floral Bedspread-F/Q-Mocha-Brown", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Mocha Brown"}, {"SKU": "Floral Bedpread-F/Q-Mocha Brown", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Mocha Brown"}, {"SKU": "BEDSPREAD-NVY-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Navy"}, {"SKU": "Floral-Bedspread-F/Q-Navy", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Navy"}, {"SKU": "Floral Bedspread-Navy Blue-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Navy"}, {"SKU": "FloralBedspread-NAVY-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Navy"}, {"SKU": "Floral Bedspread-F/Q-Navy", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Navy"}, {"SKU": "BEDSPREAD-OCH-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Ochre"}, {"SKU": "Floral-Bedspread-F/Q-Ochre", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Ochre"}, {"SKU": "Floral Bedspread-Ochre-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Ochre"}, {"SKU": "FLORAL-BEDSPREAD-OCHRE-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Ochre"}, {"SKU": "Floral Bedspread-F/Q-Ochre", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Ochre"}, {"SKU": "Floral Bedspread_F/Q_Oc", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Ochre"}, {"SKU": "Floral Bedspread-F/Q-Olive Green", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Olive Green"}, {"SKU": "Floral Bedspread_Fu_Olive", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Olive Green"}, {"SKU": "Floral Bedspread-F/Q-Peach-F/Q-Peach", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Peach"}, {"SKU": "Floral Bedspread_F/Q_peach", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Peach"}, {"SKU": "Floral Bedspread-F/Q-Peach", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Peach"}, {"SKU": "Floral-Bedspread-F/Q-Pink", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Pink"}, {"SKU": "Floral Bedspread_Fu_Pinl", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Pink"}, {"SKU": "Floral Bedspread-F/Q-Blush Pink", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Pink"}, {"SKU": "Floral Bedspread-F/Q-Bluish Pink", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Pink"}, {"SKU": "Floral Bedspread-F/Q-Purple", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Purple"}, {"SKU": "BEDSPREAD-RST-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Rust"}, {"SKU": "Floral Bedspread -Full/Queen-Rust", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Rust"}, {"SKU": "Floral Bedspread-F/Q-Rust", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Rust"}, {"SKU": "FloralBedspread-Rust-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Rust"}, {"SKU": "Floral Bedspread-Rust-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Rust"}, {"SKU": "Floral Bedspread-F/Q-USage-Green", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Sage Green"}, {"SKU": "BEDSPREAD-USAGE GREEN-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Sage Green"}, {"SKU": "Floral Bedspread-F/Q-SBlue", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "SBlue"}, {"SKU": "Floral Bedspread_Fu_SBlu", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "SBlue"}, {"SKU": "Floral Bedspread-F/Q-Sky Blue", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "SBlue"}, {"SKU": "BEDSPREAD-SLV-F/Q", "Product": "FLoral Bedspread", "Size": "F/Q", "Color": "Silver"}, {"SKU": "Floral Bedspread-F/Q-Silver", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Silver"}, {"SKU": "BEDSPREAD-SPA-BLU-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Spa Blue"}, {"SKU": "Floral Bedspread-Spa Blue-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Spa Blue"}, {"SKU": "Floral Bedspread-F/Q-Spa Blue", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Spa Blue"}, {"SKU": "Floral-Bedspread-F/Q-Washed Blue", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Washed Blue"}, {"SKU": "Floral Bedspread-F/Q-Washed Blue", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "Washed Blue"}, {"SKU": "Floral Bedspread-F/Q-white", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "White"}, {"SKU": "BEDSPREAD-WHT-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "White"}, {"SKU": "Floral-Bedspread-F/Q-White", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "White"}, {"SKU": "Floral Bedspread-White-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "White"}, {"SKU": "FloralBedspread-WHITE-F/Q", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "White"}, {"SKU": "Bedspread_F/Q_Wh", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "White"}, {"SKU": "Floral Bedspread -Full/Queen-White", "Product": "Floral Bedspread", "Size": "F/Q", "Color": "White"}, {"SKU": "Floral Bedspread_Fu_Oc", "Product": "Floral Bedspread", "Size": "Full", "Color": "Ochre"}, {"SKU": "Floral Bedspread-_Fu_Usage Green", "Product": "Floral Bedspread", "Size": "Full", "Color": "Sage Green"}, {"SKU": "Bedspread_Fu_Wh", "Product": "Floral Bedspread", "Size": "Full", "Color": "White"}, {"SKU": "BEDSPREAD-BGE-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Beige"}, {"SKU": "Floral Bedspread-King-Beige", "Product": "Floral Bedspread", "Size": "King", "Color": "Beige"}, {"SKU": "Floral Bedspread-_Ki_Beige", "Product": "Floral Bedspread", "Size": "King", "Color": "Beige"}, {"SKU": "Bed-King-Beige Floral", "Product": "Floral Bedspread", "Size": "King", "Color": "Beige"}, {"SKU": "FLORAL BEDSPREAD--BEIGE-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Beige"}, {"SKU": "Floral Bedspread-Beige-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Beige"}, {"SKU": "BEDSPREAD-BLK-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Black"}, {"SKU": "Floral Bedspread -King-Black", "Product": "Floral Bedspread", "Size": "King", "Color": "Black"}, {"SKU": "Floral Bedspread-Black-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Black"}, {"SKU": "Floral Bedspread-King-Black", "Product": "Floral Bedspread", "Size": "King", "Color": "Black"}, {"SKU": "Bed-King-Black  Floral", "Product": "Floral Bedspread", "Size": "King", "Color": "Black"}, {"SKU": "FloralBedspread-BLACK-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Black"}, {"SKU": "Floral-Bedspread-King-Bluish Grey", "Product": "Floral Bedspread", "Size": "King", "Color": "Bluish Grey"}, {"SKU": "Floral Bedspread-King-Bluish-Grey", "Product": "Floral Bedspread", "Size": "King", "Color": "Bluish Grey"}, {"SKU": "Floral Bedspread-King-Bluish Grey", "Product": "Floral Bedspread", "Size": "King", "Color": "Bluish Grey"}, {"SKU": "FloralBedspread-BLUISH GREY-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Bluish Grey"}, {"SKU": "Floral Bedspread-King-Blush Pink", "Product": "Floral Bedspread", "Size": "King", "Color": "Bluish Grey"}, {"SKU": "Floral-Bluish Grey-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Bluish Grey"}, {"SKU": "BEDSPREAD-BUCKTHORN BROWN-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Buckthorn Brown"}, {"SKU": "Floral Bedspread-King-Buckthorn Brown", "Product": "Floral Bedspread", "Size": "King", "Color": "Buckthorn Brown"}, {"SKU": "BEDSPREAD-BUR-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Burgundy"}, {"SKU": "8P-BEDSPREAD-BUR-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Burgundy"}, {"SKU": "Floral Bedspread-Burgundy-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Burgundy"}, {"SKU": "Floral Bedspread_Ki_Bur", "Product": "Floral Bedspread", "Size": "King", "Color": "Burgundy"}, {"SKU": "FLORAL-BEDSPREAD-BURGUNDY-KiNG", "Product": "Floral Bedspread", "Size": "King", "Color": "Burgundy"}, {"SKU": "Floral-Burgundy-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Burgundy"}, {"SKU": "Floral-King-Burgundy", "Product": "Floral Bedspread", "Size": "King", "Color": "Burgundy"}, {"SKU": "FloralBedspread-CHARCOAL-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Charcoal"}, {"SKU": "Floral Bedspread-Charcoal-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Charcoal"}, {"SKU": "Floral Bedspread-King-Charcoal", "Product": "Floral Bedspread", "Size": "King", "Color": "Charcoal"}, {"SKU": "BEDSPREAD-CRM-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Cream"}, {"SKU": "Floral-Bedspread-King-Cream", "Product": "Floral Bedspread", "Size": "King", "Color": "Cream"}, {"SKU": "FloralBedspread-CREAM-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Cream"}, {"SKU": "Floral Bedspread-_Ki_Cr", "Product": "Floral Bedspread", "Size": "King", "Color": "Cream"}, {"SKU": "Floral Bedspread-Cream-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Cream"}, {"SKU": "Floral Bedspread-King-Cream", "Product": "Floral Bedspread", "Size": "King", "Color": "Cream"}, {"SKU": "Floral Bedspread_Ki_Cr", "Product": "Floral Bedspread", "Size": "King", "Color": "Cream"}, {"SKU": "Floral Bedspread -King-Cream", "Product": "Floral Bedspread", "Size": "King", "Color": "Cream"}, {"SKU": "Floral bedspread-Crimson red-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Crimson Red"}, {"SKU": "BEDSPREAD-DPINK-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "DPink"}, {"SKU": "Floral Bedspread-King-Dark-Pink", "Product": "Floral Bedspread", "Size": "King", "Color": "DPink"}, {"SKU": "Floral Bedspread-King-DPink", "Product": "Floral Bedspread", "Size": "King", "Color": "DPink"}, {"SKU": "Floral Bedspread-DPink-King", "Product": "Floral Bedspread", "Size": "King", "Color": "DPink"}, {"SKU": "Floral Bedspread DPink-King", "Product": "Floral Bedspread", "Size": "King", "Color": "DPink"}, {"SKU": "Floral Bedspread -King-Deep Pink", "Product": "Floral Bedspread", "Size": "King", "Color": "DPink"}, {"SKU": "BEDSPREAD-EMR-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Emerald"}, {"SKU": "Floral Bedspread -King-Emerald", "Product": "Floral Bedspread", "Size": "King", "Color": "Emerald"}, {"SKU": "Floral Bedspread-Emerald-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Emerald"}, {"SKU": "Floral Bedspread-King-Emerald", "Product": "Floral Bedspread", "Size": "King", "Color": "Emerald"}, {"SKU": "FloralBedspread-EMERALD--King", "Product": "Floral Bedspread", "Size": "King", "Color": "Emerald"}, {"SKU": "Floral Bedspread-King-Emerald Green", "Product": "Floral Bedspread", "Size": "King", "Color": "Emerald"}, {"SKU": "Floral_Bedfspread_King_Emerald", "Product": "Floral Bedspread", "Size": "King", "Color": "Emerald"}, {"SKU": "BEDSPREAD-L-GRY-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Grey"}, {"SKU": "BEDSPREAD-BLU GRY-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Grey"}, {"SKU": "Floral-Bedspread-King-Grey", "Product": "Floral Bedspread", "Size": "King", "Color": "Grey"}, {"SKU": "Floral Bedspread-King-Grey", "Product": "Floral Bedspread", "Size": "King", "Color": "Grey"}, {"SKU": "Bedspread_King_Gr", "Product": "Floral Bedspread", "Size": "King", "Color": "Grey"}, {"SKU": "Bed-King-Gr Floral", "Product": "Floral Bedspread", "Size": "King", "Color": "Grey"}, {"SKU": "FloralBedspread-GREY-King.", "Product": "Floral Bedspread", "Size": "King", "Color": "Grey"}, {"SKU": "FloralBedspread-GREY-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Grey"}, {"SKU": "BEDSPREAD-LAV-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Lavender"}, {"SKU": "Floral-Bedspread-King-Lavender", "Product": "Floral Bedspread", "Size": "King", "Color": "Lavender"}, {"SKU": "Floral Bedspread-King-Lavender", "Product": "Floral Bedspread", "Size": "King", "Color": "Lavender"}, {"SKU": "Floral Bedspread-Lavender-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Lavender"}, {"SKU": "BEDSPREAD-MOCHA BROWN-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Mocha Brown"}, {"SKU": "Floral-Bedspread-King-Mocha Brown", "Product": "Floral Bedspread", "Size": "King", "Color": "Mocha Brown"}, {"SKU": "Floral Bedspread-King-Mocha-Brown", "Product": "Floral Bedspread", "Size": "King", "Color": "Mocha Brown"}, {"SKU": "Floral Bedspread -King-Mocha Brown", "Product": "Floral Bedspread", "Size": "King", "Color": "Mocha Brown"}, {"SKU": "Floral Bedspread-King-Mocha Brown", "Product": "Floral Bedspread", "Size": "King", "Color": "Mocha Brown"}, {"SKU": "FLORAL-BEDSPREAD-Mocha Brown-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Mocha Brown"}, {"SKU": "BEDSPREAD-NVY-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Navy"}, {"SKU": "Floral Bedspread-Navy Blue-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Navy"}, {"SKU": "Floral Bedspread-King-Navy", "Product": "Floral Bedspread", "Size": "King", "Color": "Navy"}, {"SKU": "FloralBedspread-NAVY-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Navy"}, {"SKU": "BEDSPREAD-OCH-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Ochre"}, {"SKU": "Floral-Bedspread-King-Ochre", "Product": "Floral Bedspread", "Size": "King", "Color": "Ochre"}, {"SKU": "FloralBedspread-OCHRE-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Ochre"}, {"SKU": "Floral Bedspread-Ochre-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Ochre"}, {"SKU": "Floral Bedspread-King-Ochre", "Product": "Floral Bedspread", "Size": "King", "Color": "Ochre"}, {"SKU": "Floral_Bedfspread_King_Ochre", "Product": "Floral Bedspread", "Size": "King", "Color": "Ochre"}, {"SKU": "Floral Bedspread-King-", "Product": "Floral Bedspread", "Size": "King", "Color": "Ochre"}, {"SKU": "BEDSPREAD-OLIVE GREEN-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Olive Green"}, {"SKU": "Floral Bedspread-King-Olive Green", "Product": "Floral Bedspread", "Size": "King", "Color": "Olive Green"}, {"SKU": "BEDSPREAD-PEACH-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Peach"}, {"SKU": "Floral Bedspread-King-Peach", "Product": "Floral Bedspread", "Size": "King", "Color": "Peach"}, {"SKU": "FloralBedspread-King-Peach", "Product": "Floral Bedspread", "Size": "King", "Color": "Peach"}, {"SKU": "BEDSPREAD-PINK-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Pink"}, {"SKU": "Floral Bedspread-King-Pink", "Product": "Floral Bedspread", "Size": "King", "Color": "Pink"}, {"SKU": "Floral Bedspread-King-Bluish Pink", "Product": "Floral Bedspread", "Size": "King", "Color": "Pink"}, {"SKU": "BEDSPREAD-PLUM-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Plum"}, {"SKU": "Floral Bedspread_Ki_Plm", "Product": "Floral Bedspread", "Size": "King", "Color": "Plum"}, {"SKU": "BEDSPREAD-PURPLE-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Purple"}, {"SKU": "Floral Bedspread-King-Purple", "Product": "Floral Bedspread", "Size": "King", "Color": "Purple"}, {"SKU": "BEDSPREAD-RST-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Rust"}, {"SKU": "Floral Bedspread-King-Rust", "Product": "Floral Bedspread", "Size": "King", "Color": "Rust"}, {"SKU": "Floral Bedspread-Rust-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Rust"}, {"SKU": "FloralBedspread-Rust-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Rust"}, {"SKU": "Bed-King-Ru Floral", "Product": "Floral Bedspread", "Size": "King", "Color": "Rust"}, {"SKU": "Floral Bedspread-King-SBlue", "Product": "Floral Bedspread", "Size": "King", "Color": "SBlue"}, {"SKU": "Floral Bedspread-King-Sky Blue", "Product": "Floral Bedspread", "Size": "King", "Color": "SBlue"}, {"SKU": "BEDSPREAD-SLV-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Silver"}, {"SKU": "Floral Bedspread-King-Silver", "Product": "Floral Bedspread", "Size": "King", "Color": "Silver"}, {"SKU": "BEDSPREAD-SPA-BLU-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Spa Blue"}, {"SKU": "BEDSPREAD-S-BLUE-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Spa Blue"}, {"SKU": "BEDSPREAD-SPA BLUE-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Spa Blue"}, {"SKU": "Floral Bedspread-Spa Blue-King", "Product": "Floral Bedspread", "Size": "King", "Color": "Spa Blue"}, {"SKU": "Floral Bedspread-King-Spa Blue", "Product": "Floral Bedspread", "Size": "King", "Color": "Spa Blue"}, {"SKU": "BEDSPREAD-USAGE GREEN-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Usage Green"}, {"SKU": "Floral Bedspread-King-USage Green", "Product": "Floral Bedspread", "Size": "King", "Color": "Usage Green"}, {"SKU": "BEDSPREAD-WASHED BLUE-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Washed Blue"}, {"SKU": "BEDSPREAD-WASH BLUE-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "Washed Blue"}, {"SKU": "Floral Bedspread-King-Washed Blue", "Product": "Floral Bedspread", "Size": "King", "Color": "Washed Blue"}, {"SKU": "BEDSPREAD-WHT-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "White"}, {"SKU": "Floral-Bedspread-King-White", "Product": "Floral Bedspread", "Size": "King", "Color": "White"}, {"SKU": "Floral Bedspread-King-White", "Product": "Floral Bedspread", "Size": "King", "Color": "White"}, {"SKU": "FloralBedspread-WHITE-KING", "Product": "Floral Bedspread", "Size": "King", "Color": "White"}, {"SKU": "Floral Bedspread-White-King", "Product": "Floral Bedspread", "Size": "King", "Color": "White"}, {"SKU": "Floral_Bedfspread_King_White", "Product": "Floral Bedspread", "Size": "King", "Color": "White"}, {"SKU": "Floral Bedspread_Ki_Wh", "Product": "Floral Bedspread", "Size": "King", "Color": "White"}, {"SKU": "Floral Bedspread -King-White", "Product": "Floral Bedspread", "Size": "King", "Color": "White"}, {"SKU": "Floral Bedspread_Tw_Be", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Beige"}, {"SKU": "Floral Bedspread-Twin-Beige", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Beige"}, {"SKU": "FLORAL BEDSPREAD--BEIGE-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Beige"}, {"SKU": "Bed-Twin-Beige Floral", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Beige"}, {"SKU": "Floral Bedspread-Beige-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Beige"}, {"SKU": "BEDSPREAD-BLK-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Black"}, {"SKU": "Floral Bedspread-Black-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Black"}, {"SKU": "Floral Bedspread-Twin-Black", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Black"}, {"SKU": "FloralBedspread-BLACK-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Black"}, {"SKU": "BEDSPREAD-BLU GRY-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Bluish Grey"}, {"SKU": "Floral Bedspread-Twin-Bluish Grey", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Bluish Grey"}, {"SKU": "FloralBedspread-Bluish Grey-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Bluish Grey"}, {"SKU": "BEDSPREAD-BUCKTHORN BROWN-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Brown"}, {"SKU": "Floral Bedspread-Twin-Buckthorn Brown", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Buckthorn Brown"}, {"SKU": "BEDSPREAD-BUR-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Burgundy"}, {"SKU": "8P-BEDSPREAD-BUR-TWIN", "Product": "FLoral Bedspread", "Size": "Twin", "Color": "Burgundy"}, {"SKU": "Floral Bedspread-Twin-Burgundy", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Burgundy"}, {"SKU": "FLORAL-BEDSPREAD-BURGUNDY-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Burgundy"}, {"SKU": "Floral-Burgundy-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Burgundy"}, {"SKU": "Floral Bedspread-Burgundy-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Burgundy"}, {"SKU": "BEDSPREAD-CHR-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Charcoal"}, {"SKU": "Floral Bedspread-Twin-Charcoal", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Charcoal"}, {"SKU": "BEDSPREAD-CRM-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Cream"}, {"SKU": "Floral-Bedspread-Twin-Cream", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Cream"}, {"SKU": "Floral Bedspread-Cream-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Cream"}, {"SKU": "Floral Bedspread-Twin-Cream", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Cream"}, {"SKU": "Floral Bedspread_Tw_Cr", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Cream"}, {"SKU": "FloralBedspread-CREAM-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Cream"}, {"SKU": "Floral Bedspread -Twin-Cream", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Cream"}, {"SKU": "Floral bedspread-Crimson red-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Crimson Red"}, {"SKU": "Floral Bedspread-DPink-twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "DPink"}, {"SKU": "BEDSPREAD-EMR-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Emerald"}, {"SKU": "Floral Bedspread-Emerald-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Emerald"}, {"SKU": "Floral Bedspread-Twin-Emerald", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Emerald"}, {"SKU": "FloralBedspread-EMERALD-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Emerald"}, {"SKU": "FloralBedspread-EMERALD--Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Emerald"}, {"SKU": "BEDSPREAD-GRY-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Grey"}, {"SKU": "BEDSPREAD-BLUISH GRAY-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Grey"}, {"SKU": "FloralBedspread-GREY--TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Grey"}, {"SKU": "Floral Bedspread-Twin-Grey", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Grey"}, {"SKU": "Floral Bedspread-Grey-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Grey"}, {"SKU": "Floral-Bluish Grey-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Grey"}, {"SKU": "BEDSPREAD-LAV-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Lavender"}, {"SKU": "Floral Bedspread-Twin-Lavender", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Lavender"}, {"SKU": "Floral Bedspread-Lavender-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Lavender"}, {"SKU": "BEDSPREAD-MOC BROWN-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Mocha Brown"}, {"SKU": "Floral Bedspread-Twin-Mocha Brown", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Mocha Brown"}, {"SKU": "Floral bedspread_Tw_Washed bLUE", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Navy"}, {"SKU": "BEDSPREAD-NVY-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Navy"}, {"SKU": "Floral Bedspread-Navy Blue-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Navy"}, {"SKU": "Floral Bedspread-Twin-Navy", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Navy"}, {"SKU": "Floral bedspread_Tw_Navy", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Navy"}, {"SKU": "FloralBedspread-NAVY-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Navy"}, {"SKU": "Floral Bedspread -Twin-Navy", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Navy"}, {"SKU": "BEDSPREAD-OCH-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Ochre"}, {"SKU": "Floral Bedspread-Twin-Ochre", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Ochre"}, {"SKU": "Floral Bedspread-Ochre-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Ochre"}, {"SKU": "FLORAL-BEDSPREAD-OCHRE---Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Ochre"}, {"SKU": "FLORAL-BEDSPREAD-OCHRE-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Ochre"}, {"SKU": "Floral Bedspread-Twin-Olive Green", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Olive Green"}, {"SKU": "Floral Bedspread-Twin-Peach-Twin-Peach", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Peach"}, {"SKU": "Floral Bedspread-Twin-Bluish Pink", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Pink"}, {"SKU": "Floral Bedspread-Twin-Plum", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Plum"}, {"SKU": "BEDSPREAD-RST-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Rust"}, {"SKU": "Floral Bedspread-Rust-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Rust"}, {"SKU": "Floral Bedspread-Twin-Rust", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Rust"}, {"SKU": "FloralBedspread-Rust-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Rust"}, {"SKU": "Floral Bedspread-Twin-Sage Green", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Sage Green"}, {"SKU": "Floral Bedspread-Twin-Sky Blue", "Product": "Floral Bedspread", "Size": "Twin", "Color": "SBlue"}, {"SKU": "Floral Bedspread-Twin-Sblue", "Product": "Floral Bedspread", "Size": "Twin", "Color": "SBlue"}, {"SKU": "BEDSPREAD-SLV-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Silver"}, {"SKU": "Floral bedspread_Tw_Si", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Silver"}, {"SKU": "Floral Bedspread-Twin-Silver", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Silver"}, {"SKU": "BEDSPREAD-SPA-BLU-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Spa Blue"}, {"SKU": "BEDSPREAD-SPA BLUE-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Spa Blue"}, {"SKU": "Floral bedspread_Tw_spa blue", "Product": "Floral bedspread", "Size": "Twin", "Color": "Spa Blue"}, {"SKU": "Floral Bedspread-Spa Blue-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Spa Blue"}, {"SKU": "Floral Bedspread-Twin-Spa Blue", "Product": "Floral Bedspread", "Size": "Twin", "Color": "Spa Blue"}, {"SKU": "BEDSPREAD-WHT-TWIN", "Product": "Floral Bedspread", "Size": "Twin", "Color": "White"}, {"SKU": "Floral Bedspread-Twin-White", "Product": "Floral Bedspread", "Size": "Twin", "Color": "White"}, {"SKU": "Floral Bedspread-White-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "White"}, {"SKU": "FloralBedspread-WHITE-Twin", "Product": "Floral Bedspread", "Size": "Twin", "Color": "White"}, {"SKU": "Floral Bedspread -Twin-White", "Product": "Floral Bedspread", "Size": "Twin", "Color": "White"}, {"SKU": "BEDSPREAD-CHR-KING", "Product": "Floral Bedspread ", "Size": "King", "Color": "Charcoal"}, {"SKU": "BEDSPREAD-GRY-KING", "Product": "Floral Bedspread ", "Size": "King", "Color": "Grey"}, {"SKU": "BEDSPREAD-BGE-TWIN", "Product": "Floral Bedspread ", "Size": "Twin", "Color": "Beige"}, {"SKU": "6P-WASHCLOTHS-12''X12''", "Product": "HCotton Towel", "Size": "12x12", "Color": "White"}, {"SKU": "HCotton Towel-12x12-White", "Product": "HCotton Towel", "Size": "12x12", "Color": "White"}, {"SKU": "HCotton Towel-12x12", "Product": "HCotton Towel", "Size": "12x12", "Color": "White"}, {"SKU": "6P-HAND-TOWELS-16''X28''", "Product": "HCotton Towel", "Size": "16x28", "Color": "White"}, {"SKU": "HCotton Towel-16x28", "Product": "HCotton Towel", "Size": "16x28", "Color": "White"}, {"SKU": "HCotton Towel-16x28-White", "Product": "HCotton Towel", "Size": "16x28", "Color": "White"}, {"SKU": "6P-BATH-MAT-20''X30''", "Product": "HCotton Towel", "Size": "20x30", "Color": "White"}, {"SKU": "HCotton Towel-20x30-White", "Product": "HCotton Towel", "Size": "20x30", "Color": "White"}, {"SKU": "HCotton Towel-20x30", "Product": "HCotton Towel", "Size": "20x30", "Color": "White"}, {"SKU": "6P-BATH-TOWELS-26''X52''", "Product": "HCotton Towel", "Size": "26x52", "Color": "White"}, {"SKU": "Bath Towel 26x52 Pack of 2", "Product": "HCotton Towel", "Size": "26x52", "Color": "White"}, {"SKU": "Bath Towel 26x52\" Pack of 1", "Product": "HCotton Towel", "Size": "26x52", "Color": "White"}, {"SKU": "HCotton Towel-26x52-White", "Product": "HCotton Towel", "Size": "26x52", "Color": "White"}, {"SKU": "HCotton Towel-26x52", "Product": "HCotton Towel", "Size": "26x52", "Color": "White"}, {"SKU": "King Pack of 12 Fitted Sheet", "Product": "HFitted Sheet", "Size": "King", "Color": "White"}, {"SKU": "HMicro Pillow-Queen-White", "Product": "HMicro Pillow", "Size": "Queen", "Color": "White"}, {"SKU": "Micro Pillow-King-Burgundy", "Product": "Micro Pillow", "Size": "King", "Color": "Burgundy"}, {"SKU": "Micro Pillow-King-Ochre", "Product": "Micro Pillow", "Size": "King", "Color": "Ochre"}, {"SKU": "Micro Pillow-King-Rust", "Product": "Micro Pillow", "Size": "King", "Color": "Rust"}, {"SKU": "20 x 38 in Pack of 2 Pillow Protector", "Product": "Micro Pillow", "Size": "King", "Color": "White"}, {"SKU": "2P Micro Pillow_Queen_Blk", "Product": "Micro Pillow", "Size": "Queen", "Color": "Black"}, {"SKU": "Micro Pillow-Queen-Black", "Product": "Micro Pillow", "Size": "Queen", "Color": "Black"}, {"SKU": "Black Pack of 4 Pillowcase ( 20x30 )", "Product": "Micro Pillow", "Size": "Queen", "Color": "Black"}, {"SKU": "Burgundy Pack of 4 Pillowcase ( 20x30 )", "Product": "Micro Pillow", "Size": "Queen", "Color": "Burgundy"}, {"SKU": "Pack of 4 ( 20x30\" ) Gray", "Product": "Micro Pillow", "Size": "Queen", "Color": "Grey"}, {"SKU": "Pack of 4 Pillowcase ( 20x30 ) Lavander", "Product": "Micro Pillow", "Size": "Queen", "Color": "Lavender"}, {"SKU": "Pack of 2 Pillowcase 20x30 Navy", "Product": "Micro Pillow", "Size": "Queen", "Color": "Navy"}, {"SKU": "Pack of 4 Pillowcase ( 20x30 ) Navy Blue", "Product": "Micro Pillow", "Size": "Queen", "Color": "Navy"}, {"SKU": "Pack of 4 ( 20x30\" ) Ochre", "Product": "Micro Pillow", "Size": "Queen", "Color": "Ochre"}, {"SKU": "Pack of 2 Pillowcase ( 20x30 ) Sage Green", "Product": "Micro Pillow", "Size": "Queen", "Color": "Sage Green"}, {"SKU": "Pack of 4 Pillowcase ( 20x30 ) Sage Green", "Product": "Micro Pillow", "Size": "Queen", "Color": "Sage Green"}, {"SKU": "Pack of 4 Pillowcase ( 20x30 ) Spa Blue", "Product": "Micro Pillow", "Size": "Queen", "Color": "Spa Blue"}, {"SKU": "Spa Blue Pack of 4 Pillowcase 20x30", "Product": "Micro Pillow", "Size": "Queen", "Color": "Spa Blue"}, {"SKU": "20 x 28 in Pack of 4 Pillow Protector", "Product": "Micro Pillow", "Size": "Queen", "Color": "White"}, {"SKU": "2P Micro Pillow_Queen_White", "Product": "Micro Pillow", "Size": "Queen", "Color": "White"}, {"SKU": "White Pack of 4 Pillowcase ( 20x30 )", "Product": "Micro Pillow", "Size": "Queen", "Color": "White"}, {"SKU": "2x Pairs   Mic-Pillowcase-Wh-Queen", "Product": "Micro Pillow", "Size": "Queen", "Color": "White"}, {"SKU": "2x Pairs   Mic-Pillowcase-Wh", "Product": "Micro Pillow", "Size": "Queen", "Color": "White"}, {"SKU": "MIC-SHT-SET-FULL-CRM", "Product": "Micro Sheet Set", "Size": "Full", "Color": "Cream"}, {"SKU": "4P Sheet Set_Fu_Gr", "Product": "Micro Sheet Set", "Size": "Full", "Color": "Grey"}, {"SKU": "Micro Sheet Set-Full-Grey", "Product": "Micro Sheet Set", "Size": "Full", "Color": "Grey"}, {"SKU": "4P Sheet Set_Fu_La", "Product": "Micro Sheet Set", "Size": "Full", "Color": "Lavender"}, {"SKU": "4P Sheet Set_Fu_Na", "Product": "Micro Sheet Set", "Size": "Full", "Color": "Navy"}, {"SKU": "4P Sheet Set_Fu_Navy", "Product": "Micro Sheet Set", "Size": "Full", "Color": "Navy"}, {"SKU": "Micro Sheet Set-Full-Navy", "Product": "Micro Sheet Set", "Size": "Full", "Color": "Navy"}, {"SKU": "4P Sheet Set_Fu_Oc", "Product": "Micro Sheet Set", "Size": "Full", "Color": "Ochre"}, {"SKU": "MIC-SHT-SET-FULL-OCH", "Product": "Micro Sheet Set", "Size": "Full", "Color": "Ochre"}, {"SKU": "Micro Sheet Set-Full-White", "Product": "Micro Sheet Set", "Size": "Full", "Color": "White"}, {"SKU": "Micro Sheet Set-Full-Ochre", "Product": "Micro Sheet Set", "Size": "Full ", "Color": "Ochre"}, {"SKU": "Micro Sheet Set-King-Beige", "Product": "Micro Sheet Set", "Size": "King", "Color": "Beige"}, {"SKU": "4P Sheet Set_Ki_Bu", "Product": "Micro Sheet Set", "Size": "King", "Color": "Burgundy"}, {"SKU": "Micro Sheet Set-King-Burgundy", "Product": "Micro Sheet Set", "Size": "King", "Color": "Burgundy"}, {"SKU": "4P Sheet Set-Cream-King", "Product": "Micro Sheet Set", "Size": "King", "Color": "Cream"}, {"SKU": "Micro Sheet Set-King-Cream", "Product": "Micro Sheet Set", "Size": "King", "Color": "Cream"}, {"SKU": "4P Sheet Set_Ki_Gr", "Product": "Micro Sheet Set", "Size": "King", "Color": "Grey"}, {"SKU": "Micro Sheet Set-King-Grey", "Product": "Micro Sheet Set", "Size": "King", "Color": "Grey"}, {"SKU": "4P Sheet Set_Ki_Si", "Product": "Micro Sheet Set", "Size": "King", "Color": "L.Grey"}, {"SKU": "Micro Sheet Set-King-Navy", "Product": "Micro Sheet Set", "Size": "King", "Color": "Navy"}, {"SKU": "4P Sheet Set-Silver-King", "Product": "Micro Sheet Set", "Size": "King", "Color": "Silver"}, {"SKU": "Micro Sheet Set-King-Spa Blue", "Product": "Micro Sheet Set", "Size": "King", "Color": "Spa Blue"}, {"SKU": "4P Sheet Set_Qu_Be", "Product": "Micro Sheet Set", "Size": "Queen", "Color": "Beige"}, {"SKU": "4P Sheet Set_Qu_Gr", "Product": "Micro Sheet Set", "Size": "Queen", "Color": "Grey"}, {"SKU": "4P Sheet Set_Qu_Si", "Product": "Micro Sheet Set", "Size": "Queen", "Color": "L.Grey"}, {"SKU": "4P Sheet Set_Qu_Oc", "Product": "Micro Sheet Set", "Size": "Queen", "Color": "Ochre"}, {"SKU": "4P Sheet Set_Qu_Wh", "Product": "Micro Sheet Set", "Size": "Queen", "Color": "White"}, {"SKU": "4P Sheet Set_Tw_Oc", "Product": "Micro Sheet Set", "Size": "Twin", "Color": "Ochre"}, {"SKU": "Micro Sheet Set-Twin-Ochre", "Product": "Micro Sheet Set", "Size": "Twin", "Color": "Ochre"}, {"SKU": "Micro Sheet Set-Twin-Rust", "Product": "Micro Sheet Set", "Size": "Twin", "Color": "Rust"}, {"SKU": "4P Sheet Set-Rust-Twin", "Product": "Micro Sheet Set", "Size": "Twin", "Color": "Rust"}, {"SKU": "2P Sheer Curtain-50x84-Blue", "Product": "Sheer Curtain", "Size": "50x84", "Color": "Ether"}, {"SKU": "2P Sheer Curtain-50x84-Green", "Product": "Sheer Curtain", "Size": "50x84", "Color": "Sage Green"}, {"SKU": "Sheer-Curtain-50x84-White", "Product": "Sheer Curtain", "Size": "50x84", "Color": "White"}, {"SKU": "2P Sheer Curtain-50x84-White", "Product": "Sheer Curtain", "Size": "50x84", "Color": "White"}, {"SKU": "Sheer Curtain-50x84- Pale yellow", "Product": "Sheet Curtain", "Size": "50x84", "Color": "Pale Yellow"}, {"SKU": "SHRP-CAMEL-TWIN", "Product": "Sherpa Blanket", "Size": "Twin", "Color": "Camel"}, {"SKU": "Sherpa Blanket-Twin-Navy", "Product": "Sherpa Blanket", "Size": "Twin", "Color": "Navy"}, {"SKU": "SHRP-NAVY-TWIN", "Product": "Sherpa Blanket", "Size": "Twin", "Color": "Navy"}, {"SKU": "Sherpa-Blanket-Navy-T", "Product": "Sherpa Blanket", "Size": "Twin", "Color": "Navy"}, {"SKU": "Sherpa-Blanket-Silver-T", "Product": "Sherpa Blanket", "Size": "Twin", "Color": "Silver"}, {"SKU": "Strap-Pro-White-Cal King", "Product": "Strap Protector", "Size": "Cal King", "Color": "White"}, {"SKU": "Strap Protector-Full", "Product": "Strap Protector", "Size": "Full", "Color": "White"}, {"SKU": "STP-PRO-COIN-FULL", "Product": "Strap Protector", "Size": "Full", "Color": "White"}, {"SKU": "Strap-Pro-White-Full", "Product": "Strap Protector", "Size": "Full", "Color": "White"}, {"SKU": "Strap-Pro-White-King", "Product": "Strap Protector", "Size": "King", "Color": "White"}, {"SKU": "STP-PRO-COIN-QUEEN", "Product": "Strap Protector", "Size": "Queen", "Color": "White"}, {"SKU": "Strap-Pro-White-Queen", "Product": "Strap Protector", "Size": "Queen", "Color": "White"}, {"SKU": "Strap-Pro-White-Twin", "Product": "Strap Protector", "Size": "Twin", "Color": "White"}, {"SKU": "8P-STP-PRO-TWIN", "Product": "Strap Protector", "Size": "Twin ", "Color": "White"}, {"SKU": "SFB-QUEEN-BLACK", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Black"}, {"SKU": "Stripe Blanket-Queen-Black", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Black"}, {"SKU": "Stripe Fleece Blanket-Queen-Black", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Black"}, {"SKU": "SFB-QUEEN-BLUE MIRAGE", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Blue Mirage"}, {"SKU": "Stripe Fleece Blanket-Queen-Blue Mirage", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Blue Mirage"}, {"SKU": "Striped Blanket Queen Blue Mirage", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Blue Mirage"}, {"SKU": "Striped-Fleece Blanket-100x90-Blue Mirage", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Blue Mirage"}, {"SKU": "Stripe Blanket-Queen-Blue Mirage", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Blue Mirage"}, {"SKU": "SFB-QUEEN-CELESTAIL BLUE", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Celestial Blue"}, {"SKU": "Stripe Fleece Blanket-Queen-Celestail Blue", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Celestial Blue"}, {"SKU": "Stripe Blanket-Queen-Celestial Blue", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Celestial Blue"}, {"SKU": "Striped-Fleece Blanket-100x90- Celestail Blue", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Celestial Blue"}, {"SKU": "Stripe Blanket-Queen-Cream", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Cream"}, {"SKU": "SFB-QUEEN-GRAY", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Grey"}, {"SKU": "Stripe Fleece Blanket-Queen-Grey", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Grey"}, {"SKU": "Striped Fleece Blanket Gray", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Grey"}, {"SKU": "Stripe Blanket-Queen-Grey", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Grey"}, {"SKU": "Striped-Fleece Blanket-100x90- Grey", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Grey"}, {"SKU": "SFB-QUEEN-OFF WHITE", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Off White"}, {"SKU": "Stripe Fleece Blanket-Queen-Off White", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Off White"}, {"SKU": "Stripe Blanket-Queen-Off White", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Off White"}, {"SKU": "SFB-QUEEN-PRUNE", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Prune"}, {"SKU": "Stripe Fleece Blanket-Queen-Prune", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Prune"}, {"SKU": "Striped-Fleece Blanket-100x90-Prune", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Prune"}, {"SKU": "Stripe Blanket-Queen-Prune", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Prune"}, {"SKU": "Stirpe Blanket-Queen-Prune", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Prune"}, {"SKU": "SFB-QUEEN-RED DAHILA", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Red Dahlia"}, {"SKU": "SFB-QUEEN-RED DAHLIA", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Red Dahlia"}, {"SKU": "Striped-Fleece Blanket-100x90-Red Dahila", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Red Dahlia"}, {"SKU": "Stripe Blanket-Queen-Red Dahlia", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Red Dahlia"}, {"SKU": "Stripe Fleece Blanket-Queen-Red", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Red Dahlia"}, {"SKU": "Stripe-Blanket-Red Dahlia", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Red Dahlia"}, {"SKU": "Stripe Blanket-Queen-Red Dahila", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Red Dahlia"}, {"SKU": "Stripe Blanket Red Dahila.", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Red Dahlia"}, {"SKU": "SFB-QUEEN-ROSE DUST", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Rose Dust"}, {"SKU": "Stripe Blanket-Queen-Rose Pink", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Rose Dust"}, {"SKU": "Stripe Fleece Blanket-Queen-Pink", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Rose Dust"}, {"SKU": "Stripe Blanket-Queen-Rose Dust", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Rose Dust"}, {"SKU": "Stripe-Blanket-Rose Dust", "Product": "Stripe Blanket", "Size": "Queen", "Color": "Rose Dust"}, {"SKU": "Stripe Fleece Blanket-Queen-Red Dahlia", "Product": "Stripe Fleece Blanket", "Size": "Queen", "Color": "Red Dahlia"}, {"SKU": "Swaddle - 3 Pack-0-3M-Floral", "Product": "Swaddle-3Pack", "Size": "0-3M", "Color": "Floral"}];
+
+// ---- State ----
+let skuDB = {};          // SKU -> {Product, Size, Color}
+let pdfFiles = [];       // uploaded PDF file objects
+let parsedShipments = []; // [{labelPage, slipPages[], labelType, skus:[{sku,raw,matched,product,size,color,qty}], resolvedText}]
+let sortedShipments = [];
+let selectedSet = new Set(); // realIdx of shipments selected for position editing
+let carrierFilter = null;    // 'fedex' | 'ups' | 'usps' | null (show all)
+let currentFixIdx = -1;
+let currentFixSkuIdx = -1;
+let pdfjsLib = window['pdfjs-dist/build/pdf'];
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let loadedPdfDocs = []; // rendered pdf.js docs
+let rawPdfBytes = [];   // Uint8Array for pdf-lib
+
+// ---- Persistent SKU storage (localStorage) ----
+// We keep the built-in catalog in code and persist only the user's changes:
+//  - userSkuLayer: SKUs the user added or edited (overlaid on top of built-ins)
+//  - deletedBuiltins: built-in SKU keys the user removed
+// This survives refresh and still lets new built-ins ship in future updates.
+const SKU_STORE_KEY = 'labelsku_user_skus_v1';
+const SKU_DELETED_KEY = 'labelsku_deleted_skus_v1';
+let builtinKeys = new Set();      // keys that came from BUILTIN_SKU_DATA + extras
+let deletedBuiltins = new Set();  // built-in keys the user deleted
+
+function loadUserSkuLayer() {
+  try { return JSON.parse(localStorage.getItem(SKU_STORE_KEY) || '{}'); }
+  catch(e) { return {}; }
+}
+function loadDeletedBuiltins() {
+  try { return new Set(JSON.parse(localStorage.getItem(SKU_DELETED_KEY) || '[]')); }
+  catch(e) { return new Set(); }
+}
+// Persist current state: anything not identical to a built-in is a user entry.
+function persistSkuDB() {
+  const userLayer = {};
+  for (const [k, v] of Object.entries(skuDB)) {
+    if (!builtinKeys.has(k)) { userLayer[k] = v; continue; }       // new SKU
+    const b = builtinOriginal[k];
+    if (!b || b.Product !== v.Product || b.Size !== v.Size || b.Color !== v.Color) {
+      userLayer[k] = v;                                            // edited built-in
+    }
+  }
+  try {
+    localStorage.setItem(SKU_STORE_KEY, JSON.stringify(userLayer));
+    localStorage.setItem(SKU_DELETED_KEY, JSON.stringify([...deletedBuiltins]));
+  } catch(e) { /* storage full / disabled — silently continue */ }
+}
+
+let builtinOriginal = {}; // snapshot of built-in values for diffing
+
+// ---- Init SKU DB ----
+function initDB() {
+  skuDB = {};
+  builtinKeys = new Set();
+  builtinOriginal = {};
+
+  BUILTIN_SKU_DATA.forEach(row => {
+    if (row.SKU && row.SKU.trim()) {
+      const k = row.SKU.trim();
+      skuDB[k] = { Product: (row.Product||'').trim(), Size: (row.Size||'').trim(), Color: (row.Color||'').trim() };
+      builtinKeys.add(k);
+    }
+  });
+  // ---- Additional SKUs found in ShipStation PDFs ----
+  const extra = [
+    // Encasement variants (lowercase / alternate naming from eBay/Amazon shops)
+    {SKU:'Mattress Encasement_Ki',        Product:'Encasement', Size:'King',    Color:'White'},
+    {SKU:'mattress encasement_Ca',        Product:'Encasement', Size:'Cal King',Color:'White'},
+    {SKU:'mattress encasement_King',      Product:'Encasement', Size:'King',    Color:'White'},
+    {SKU:'mattress encasement_Qu',        Product:'Encasement', Size:'Queen',   Color:'White'},
+    {SKU:'mattress encasement_Full',      Product:'Encasement', Size:'Full',    Color:'White'},
+    {SKU:'mattress encasement_Tw',        Product:'Encasement', Size:'Twin',    Color:'White'},
+    // Pillow protector full-name SKUs (eBay listing titles used as SKU)
+    {SKU:'King 20"x38" Pack of 4 Zippered Quilted Pillow Protector', Product:'4P QPillow Protector', Size:'King',  Color:'White'},
+    {SKU:'King 20"x38" Pack of 6 Zippered Pillow Protecto',          Product:'4P QPillow Protector', Size:'King',  Color:'White'},
+    {SKU:'Queen 20"x28" Pack of 2 Zippered Pillow Protector',        Product:'2P QPillow Protector', Size:'Queen', Color:'White'},
+    {SKU:'Queen 20"x28" Pack of 4 Zippered Pillow Protector',        Product:'4P QPillow Protector', Size:'Queen', Color:'White'},
+    // Floral / Coin bedspread case variants
+    {SKU:'floral bedspread_Tw_Bur',       Product:'Floral Bedspread', Size:'Twin', Color:'Burgundy'},
+    {SKU:'floral bedspread_Tw_Navy',      Product:'Floral Bedspread', Size:'Twin', Color:'Navy'},
+    {SKU:'floral bedspread_Ki_Wh',        Product:'Floral Bedspread', Size:'King', Color:'White'},
+    {SKU:'Coin-Bedspread-Ck-Gry',         Product:'Coin Bedspread',   Size:'Cal King', Color:'Grey'},
+    {SKU:'Coin-Bedspread-F/Q-Sage Green', Product:'Coin Bedspread',   Size:'F/Q', Color:'Sage Green'},
+  ];
+  extra.forEach(row => {
+    if (!skuDB[row.SKU]) { skuDB[row.SKU] = { Product: row.Product, Size: row.Size, Color: row.Color }; builtinKeys.add(row.SKU); }
+  });
+
+  // Snapshot built-ins for later diffing
+  builtinOriginal = JSON.parse(JSON.stringify(skuDB));
+
+  // Overlay the user's saved changes from a previous session
+  deletedBuiltins = loadDeletedBuiltins();
+  deletedBuiltins.forEach(k => { delete skuDB[k]; });
+  const userLayer = loadUserSkuLayer();
+  let restored = 0;
+  for (const [k, v] of Object.entries(userLayer)) { skuDB[k] = v; restored++; }
+
+  const msg = restored ? `✓ ${Object.keys(skuDB).length} SKUs loaded (${restored} saved)` : `✓ ${Object.keys(skuDB).length} SKUs loaded`;
+  document.getElementById('skuCount').textContent = msg;
+  updateSkuCountDisplays();
+}
+
+// ---- SKU Lookup (case-insensitive, trimmed) ----
+function lookupSKU(raw) {
+  if (!raw) return null;
+  const t = raw.trim();
+  if (skuDB[t]) return skuDB[t];
+  // case-insensitive
+  const low = t.toLowerCase();
+  for (const [k,v] of Object.entries(skuDB)) {
+    if (k.toLowerCase() === low) return v;
+  }
+  return null;
+}
+
+// ---- File handling ----
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+}
+function handleFiles(files) {
+  Array.from(files).forEach(f => {
+    if (f.type === 'application/pdf' || f.name.endsWith('.pdf')) {
+      pdfFiles.push(f);
+    }
+  });
+  renderFileList();
+  document.getElementById('validateBtn').disabled = pdfFiles.length === 0;
+}
+function renderFileList() {
+  const el = document.getElementById('fileList');
+  el.innerHTML = pdfFiles.map((f,i) => `
+    <div class="file-pill">
+      <span>📄</span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${f.name}</span>
+      <button class="remove" onclick="removeFile(${i})">✕</button>
+    </div>`).join('');
+}
+function removeFile(i) {
+  pdfFiles.splice(i, 1);
+  renderFileList();
+  document.getElementById('validateBtn').disabled = pdfFiles.length === 0;
+}
+
+// ---- Excel Import ----
+function importExcel(inp) {
+  const f = inp.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws);
+    let count = 0;
+    rows.forEach(row => {
+      const sku = (row.SKU||row.sku||'').toString().trim();
+      if (sku) { skuDB[sku] = { Product:(row.Product||row.product||'').trim(), Size:(row.Size||row.size||'').trim(), Color:(row.Color||row.color||'').trim() }; count++; }
+    });
+    document.getElementById('skuCount').textContent = `✓ ${Object.keys(skuDB).length} SKUs (${count} imported)`;
+    updateSkuCountDisplays();
+    persistSkuDB();
+    notify(`Imported ${count} SKUs`, 'ok');
+    maybeRevalidate();
+  };
+  reader.readAsArrayBuffer(f);
+}
+
+// ---- Page type detection from rendered text ----
+// Label-type detection.
+//
+// Key insight validated against real CottonPassion PDFs:
+//   • FedEx labels carry the readable "FedEx" brand.
+//   • UPS Ground Saver labels are rasterized IMAGES — they extract ZERO text.
+//   • USPS Ground Advantage labels always carry a text layer (sometimes a
+//     readable "GROUND ADVANTAGE", sometimes garbled Private-Use-Area glyphs
+//     from an embedded font, but always *some* characters).
+//
+// So: read clean markers when present; otherwise decide by whether the page
+// has any text layer at all (text => USPS, no text => UPS).
+function detectLabelTypeFromText(text) {
+  const raw = text || '';
+  const t = raw.toUpperCase();
+
+  // Count "real" alphanumeric characters, ignoring Private-Use-Area glyphs
+  // (U+E000–U+F8FF) which are garbled font output, plus whitespace.
+  let realChars = 0, anyChars = 0;
+  for (const ch of raw) {
+    const code = ch.codePointAt(0);
+    if (ch.trim() === '') continue;
+    anyChars++;
+    if (code >= 0xE000 && code <= 0xF8FF) continue; // PUA = garbled
+    realChars++;
+  }
+
+  // 1) Clean brand markers (most reliable when the text layer is readable)
+  if (t.includes('FEDEX') || t.includes('FED EX')) return 'fedex';
+  if (/1Z\s*[A-Z0-9 ]{6,}/.test(t)) return 'ups';
+  if (t.includes('UPS GROUND') || t.includes('GROUND SAVER')) return 'ups';
+  if (t.includes('GROUND ADVANTAGE') || t.includes('PRIORITY MAIL')) return 'usps';
+  if (t.includes('USPS') && !t.includes('UPS GROUND')) return 'usps';
+
+  // 2) No readable markers. Use the text-layer signal:
+  //    - Some characters present (even garbled PUA) => USPS label.
+  //    - Truly empty page (image-only) => inconclusive (caller may go visual),
+  //      but in this workflow image-only labels are UPS.
+  if (anyChars > 0) return 'usps';   // has a text layer => USPS
+  return null;                       // no text at all => let caller decide (UPS)
+}
+
+// Visual fallback (used only if a page has NO text layer). In this workflow an
+// image-only label is UPS, so we simply return 'ups'. We keep the QR check as a
+// secondary confirmation but bias to UPS, since USPS labels here always carry
+// text and never reach this path.
+async function detectLabelTypeVisual(page) {
+  return 'ups';
+}
+
+function detectSlipType(text) {
+  const t = text.toUpperCase();
+  // Temu: uses Goods/Product/Contribution SKU IDs + Attributes
+  if (t.includes('CONTRIBUTION SKU') || t.includes('GOODS SKU')) return 'temu';
+  // TikTok: "Seller SKU" column header and/or TikTok Shop branding.
+  // Check BEFORE the generic "PACKING SLIP" rule, because TikTok slips also
+  // carry a "Packing Slip" header and would otherwise be mistaken for ShipStation.
+  if (t.includes('SELLER SKU') || t.includes('TIKTOK') || t.includes('BUYER NICKNAME') || t.includes('QTY TOTAL')) return 'tiktok';
+  // ShipStation: "Packing Slip" header + "SKU Price Qty" table + "Sub Total:"
+  if (t.includes('PACKING SLIP') || t.includes('SHIP DATE') || t.includes('SUB TOTAL') || t.includes('SHIPSTATION') || (t.includes('SKU') && t.includes('QTY'))) return 'shipstation';
+  return null;
+}
+
+// ---- Text extraction from a page ----
+// Reconstruct text line-by-line using Y coordinates so columns don't merge
+async function getPageText(page) {
+  const tc = await page.getTextContent();
+  const vp = page.getViewport({scale:1});
+  const pageH = vp.height;
+  // Group items by rounded Y — use 6pt tolerance so mixed font-sizes on same visual line stay together
+  const lineMap = {};
+  tc.items.forEach(item => {
+    if (!item.str) return;
+    const y = Math.round((pageH - item.transform[5]) / 6) * 6;
+    if (!lineMap[y]) lineMap[y] = [];
+    lineMap[y].push({ x: item.transform[4], str: item.str });
+  });
+  const lines = Object.keys(lineMap)
+    .map(Number).sort((a,b) => a-b)
+    .map(y => lineMap[y].sort((a,b) => a.x-b.x).map(i => i.str).join(' '));
+  return lines.join('\n');
+}
+
+// Extract with coordinates
+async function getPageTextItems(page) {
+  const vp = page.getViewport({scale:1});
+  const tc = await page.getTextContent();
+  return { items: tc.items, vp };
+}
+
+// ---- SKU extraction from packing slip text & type ----
+function extractSKUsFromSlip(text, type) {
+  const skus = [];
+  if (type === 'temu') {
+    // Contribution SKU:Encasemt-Queen"  or  Contribution SKU: XX  (may span 2 lines)
+    const matches = text.matchAll(/Contribution\s+SKU\s*[:\s]+([^\s"']+(?:\s+[^\s"']+)?)/gi);
+    for (const m of matches) {
+      let s = m[1].replace(/["']/g,'').trim();
+      if (s) skus.push(s);
+    }
+    if (skus.length === 0) {
+      // Try alternate: look for lines starting with known patterns after "SKU"
+      const alt = text.match(/Contribution\s+SKU[:\s]+(.+?)(?:Attributes:|Goods SKU|$)/gi);
+      if (alt) alt.forEach(a => {
+        const v = a.replace(/Contribution\s+SKU[:\s]+/i,'').replace(/Attributes:.*$/i,'').trim().replace(/["']/g,'');
+        if (v) skus.push(v);
+      });
+    }
+  } else if (type === 'tiktok') {
+    // Seller SKU: value (may span 2 lines)
+    const matches = text.matchAll(/Seller\s+SKU\s*[:\s]+([^\s]+(?:\s+[^\s]+)?)/gi);
+    for (const m of matches) {
+      let s = m[1].trim();
+      if (s) skus.push(s);
+    }
+  } else if (type === 'shipstation') {
+    // KEY FIX: Each data row looks like:   <SKU text>  $price  qty
+    // SKU can have spaces, so we match everything BEFORE the $price pattern
+    // We look line-by-line after the "SKU Price Qty" header line
+    const lines = text.split('\n');
+    let inData = false;
+    for (const ln of lines) {
+      const l = ln.trim();
+      if (!l) continue;
+      // Detect the header row — could be "SKU Price Qty" or just contain SKU+Price
+      if (/^SKU\s+Price\s+Qty/i.test(l) || /^SKU\s+Price/i.test(l)) {
+        inData = true; continue;
+      }
+      // Stop at summary lines
+      if (inData && /^Sub\s*Total|^Tax:|^Shipping:|^Total:/i.test(l)) break;
+      if (inData && l) {
+        // Extract: everything before the last "$xx.xx  N" pattern
+        // Pattern: <SKU with spaces>  $price  qty_number
+        const m = l.match(/^(.+?)\s+\$[\d,]+\.[\d]{2}\s+\d+\s*$/);
+        if (m) {
+          const sku = m[1].trim();
+          if (sku && sku.length > 0 && !sku.startsWith('$')) skus.push(sku);
+        }
+      }
+    }
+  }
+  // Deduplicate preserving order
+  const seen = new Set();
+  return skus.filter(s => { if(seen.has(s)){return false;} seen.add(s); return true; });
+}
+
+// ============================================================
+// Unified line-item extractor — returns [{sku, qty}] per slip page
+// TikTok & Temu use coordinate-aware parsing; ShipStation keeps
+// its existing (working) regex logic untouched.
+// ============================================================
+function extractLineItems(slip) {
+  const type = slip.type || slip.slipType;
+  if (type === 'tiktok') return extractTikTokItems(slip);
+  if (type === 'temu')   return extractTemuItems(slip);
+  // ShipStation: reuse existing, proven logic
+  const skus = extractSKUsFromSlip(slip.text, 'shipstation');
+  const qtyMap = buildSkuQtyMap(slip.text, 'shipstation');
+  return skus.map(s => ({ sku: s, qty: qtyMap[s] || 1 }));
+}
+
+// Cluster pdf.js text items into visual rows by Y coordinate.
+// Returns rows sorted top->bottom; each row is items sorted left->right
+// with {x, y, str, w}.
+function clusterRows(items, pageH, yTol = 4) {
+  const norm = items
+    .filter(it => it.str && it.str.trim() !== '')
+    .map(it => ({
+      x: it.transform[4],
+      y: pageH - it.transform[5],         // flip so top = 0
+      str: it.str,
+      w: it.width || 0
+    }));
+  norm.sort((a, b) => a.y - b.y);
+  const rows = [];
+  norm.forEach(it => {
+    let row = rows.find(r => Math.abs(r.y - it.y) <= yTol);
+    if (!row) { row = { y: it.y, items: [] }; rows.push(row); }
+    row.items.push(it);
+    // keep row.y as the average so tolerance tracks the cluster
+    row.y = (row.y * (row.items.length - 1) + it.y) / row.items.length;
+  });
+  rows.sort((a, b) => a.y - b.y);
+  rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
+  return rows;
+}
+
+// ---- TikTok column-aware extractor ----
+// Table columns: Product Name | SKU | Seller SKU | Qty
+// We locate the header X-positions for "Seller SKU" and "Qty",
+// then read each data row: Qty (rightmost number) marks a line item,
+// Seller SKU = item(s) whose X sits in the Seller-SKU band.
+function extractTikTokItems(slip) {
+  const pageH = (slip.vp && slip.vp.height) || slip.page.getViewport({scale:1}).height;
+  const rows = clusterRows(slip.items, pageH);
+
+  // 1) Find the header row containing both "SKU"/"Seller SKU" and "Qty"
+  let headerIdx = -1, sellerX = null, qtyX = null, skuX = null;
+  for (let i = 0; i < rows.length; i++) {
+    const joined = rows[i].items.map(o => o.str).join(' ').toLowerCase();
+    if (joined.includes('seller sku') && joined.includes('qty')) {
+      headerIdx = i;
+      // Locate each header token's X. pdf.js may split "Seller SKU"
+      // across two items ("Seller", "SKU") — find by scanning.
+      const its = rows[i].items;
+      for (let k = 0; k < its.length; k++) {
+        const s = its[k].str.trim().toLowerCase();
+        if (s === 'seller' || s.startsWith('seller')) sellerX = its[k].x;
+        else if (s === 'sku' && sellerX === null) skuX = its[k].x;   // the plain "SKU" col (before Seller)
+        else if (s === 'sku' && sellerX !== null && Math.abs(its[k].x - sellerX) < 2) {/* part of Seller SKU */}
+        if (s === 'qty') qtyX = its[k].x;
+      }
+      // Fallback: if "SKU" appears twice, first is SKU col, second belongs to Seller SKU
+      if (skuX === null) {
+        const skuItem = its.find(o => o.str.trim().toLowerCase() === 'sku');
+        if (skuItem) skuX = skuItem.x;
+      }
+      break;
+    }
+  }
+  if (headerIdx === -1 || qtyX === null) {
+    // Could not locate columns — fall back to regex on joined text
+    return tiktokRegexFallback(slip.text);
+  }
+  // If we never separated a distinct Seller SKU X, assume it sits between SKU and Qty
+  if (sellerX === null) sellerX = skuX !== null ? (skuX + qtyX) / 2 : qtyX - 120;
+
+  // Column band for the Seller SKU value. Anchor the LEFT edge tightly to
+  // sellerX (the column reliably starts there); a midpoint with the SKU column
+  // lets wrapped SKU-column words bleed in.
+  const leftBound  = sellerX - 6;
+  const rightBound = (sellerX + qtyX) / 2;
+
+  // 2) Walk data rows. A row with a number in the Qty column starts a line item.
+  const items = [];
+  let pending = null; // accumulate seller-sku text across wrapped rows
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const r = rows[i];
+    const joined = r.items.map(o => o.str).join(' ');
+    // Stop once we hit the table footer.
+    if (/qty\s*total/i.test(joined) || /buyer\s*id/i.test(joined)) break;
+
+    // Qty cell = item near qtyX that is a bare integer
+    const qtyItem = r.items.find(o =>
+      Math.abs(o.x - qtyX) < 40 && /^\d{1,3}$/.test(o.str.trim())
+    );
+    // Seller SKU text on this row = items inside the seller band
+    const sellerParts = r.items
+      .filter(o => o.x >= leftBound - 4 && o.x < rightBound + 4)
+      .map(o => o.str.trim())
+      .filter(Boolean);
+
+    if (qtyItem) {
+      // finalize any pending item first
+      if (pending && pending.sku) items.push(pending);
+      pending = {
+        sku: sellerParts.join(' ').replace(/\s+/g, ' ').trim(),
+        qty: parseInt(qtyItem.str.trim()) || 1
+      };
+    } else if (pending && sellerParts.length) {
+      // continuation line for the seller sku of the current item
+      pending.sku = (pending.sku + ' ' + sellerParts.join(' ')).replace(/\s+/g, ' ').trim();
+    }
+  }
+  if (pending && pending.sku) items.push(pending);
+
+  // Clean: drop empties, collapse whitespace around hyphens
+  return items
+    .map(it => ({ sku: cleanSku(it.sku), qty: it.qty }))
+    .filter(it => it.sku);
+}
+
+function cleanSku(s) {
+  return (s || '')
+    .replace(/\/\s+(?=[A-Za-z])/g, ' ')  // "/ Ochre" (bleed from SKU col) -> " Ochre"
+    .replace(/-\s*\/\s*/g, '-')          // "-/ " -> "-"
+    .replace(/\s*-\s*/g, '-')            // "Bedspread - Rust" -> "Bedspread-Rust"
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Regex fallback if TikTok columns can't be located from coordinates.
+function tiktokRegexFallback(text) {
+  const out = [];
+  // Match lines like "Floral Bedspread-F/Q-Emerald 2" possibly after a SKU column.
+  const re = /([A-Za-z][\w./'+&-]*(?:[ /-][A-Za-z0-9][\w./'+&-]*)*)\s+(\d{1,3})\s*$/gm;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const sku = cleanSku(m[1]);
+    if (sku && /[A-Za-z]/.test(sku)) out.push({ sku, qty: parseInt(m[2]) || 1 });
+  }
+  return out;
+}
+
+// ---- Temu extractor ----
+// Fields per item block: Goods SKU ID / Product SKU ID / Contribution SKU / Attributes / Qty Ordered
+// Primary key = Contribution SKU. If it's "-" or blank, push the raw token
+// (e.g. the Product SKU ID) so it lands as UNMATCHED and the Fix dialog handles it.
+function extractTemuItems(slip) {
+  const text = slip.text;
+  const out = [];
+  // Split into blocks per item, keeping the "Goods SKU ID" delimiter at the
+  // start of each block (so we can read the qty that wraps onto that line).
+  const segs = text.split(/(Goods\s+SKU\s*ID)/i);
+  const blocks = [];
+  for (let i = 1; i < segs.length; i += 2) blocks.push(segs[i] + (segs[i + 1] || ''));
+
+  for (const b of blocks) {
+    // Contribution SKU value (stop at end of line)
+    const cm = b.match(/Contribution\s+SKU\s*[:\s]*([^\n]*)/i);
+    let contribution = cm ? cm[1].replace(/["']/g, '').trim() : '';
+    // Treat a lone dash / placeholder as blank
+    if (contribution === '-' || /^[-–—]$/.test(contribution)) contribution = '';
+
+    // Qty: Temu prints the qty-column number at the END of the
+    // "Goods SKU ID:<digits> <qty>" line. Fall back to "Qty Ordered: N",
+    // then to a trailing standalone integer in the block.
+    let qty = 1;
+    const gm = b.match(/Goods\s+SKU\s*ID\s*:\s*\d+\s+(\d{1,3})\b/i);
+    if (gm) {
+      qty = parseInt(gm[1]) || 1;
+    } else {
+      const qm = b.match(/Qty\s*(?:Ordered)?\s*[:\s]*(\d+)/i);
+      if (qm) {
+        qty = parseInt(qm[1]) || 1;
+      } else {
+        const nums = b.match(/^\s*(\d{1,3})\s*$/gm);
+        if (nums && nums.length) qty = parseInt(nums[nums.length - 1].trim()) || 1;
+      }
+    }
+
+    let sku = contribution;
+    if (!sku) {
+      // Blank Contribution SKU -> fall back to Product SKU ID so the row is
+      // visible and fixable, rather than silently dropped.
+      const pm = b.match(/Product\s+SKU\s*ID\s*[:\s]*([0-9]+)/i);
+      sku = pm ? ('TEMU-' + pm[1]) : '';
+    }
+    sku = cleanSku(sku);
+    if (sku) out.push({ sku, qty });
+  }
+  // Merge identical SKUs by summing qty
+  const merged = {};
+  out.forEach(it => { merged[it.sku] = (merged[it.sku] || 0) + it.qty; });
+  return Object.entries(merged).map(([sku, qty]) => ({ sku, qty }));
+}
+
+// ---- Build qty map for an order ----
+function buildSkuQtyMap(text, type) {
+  const map = {};
+  if (type === 'temu') {
+    // Look for pairs: Contribution SKU: X ... Qty: N (or just qty=1)
+    const blocks = text.split(/Goods SKU/i);
+    blocks.forEach(b => {
+      const sm = b.match(/Contribution\s+SKU[:\s]+([^\n"]+)/i);
+      const qm = b.match(/Qty\s*(?:Ordered)?\s*[:\s]*(\d+)/i) || ['',1];
+      if (sm) {
+        const sku = sm[1].replace(/["']/g,'').trim();
+        const qty = parseInt(qm[1]||'1')||1;
+        if (sku) map[sku] = (map[sku]||0)+qty;
+      }
+    });
+  } else if (type === 'tiktok') {
+    // Seller SKU: X  Qty: N
+    const blocks = text.split(/Seller\s+SKU/i);
+    blocks.slice(1).forEach(b => {
+      const sm = b.match(/^[:\s]+([^\n]+)/);
+      const qm = b.match(/Qty\s*[:\s]*(\d+)/i) || ['',1];
+      if (sm) {
+        const sku = sm[1].trim();
+        const qty = parseInt(qm[1]||'1')||1;
+        if (sku) map[sku] = (map[sku]||0)+qty;
+      }
+    });
+  } else if (type === 'shipstation') {
+    // KEY FIX: match full SKU (may have spaces) before $price qty
+    const lines = text.split('\n');
+    let inData = false;
+    for (const ln of lines) {
+      const l = ln.trim();
+      if (!l) continue;
+      if (/^SKU\s+Price\s+Qty/i.test(l) || /^SKU\s+Price/i.test(l)) { inData = true; continue; }
+      if (inData && /^Sub\s*Total|^Tax:|^Shipping:|^Total:/i.test(l)) break;
+      if (inData && l) {
+        const m = l.match(/^(.+?)\s+\$[\d,]+\.[\d]{2}\s+(\d+)\s*$/);
+        if (m) {
+          const sku = m[1].trim();
+          const qty = parseInt(m[2]) || 1;
+          if (sku && !sku.startsWith('$')) map[sku] = (map[sku]||0) + qty;
+        }
+      }
+    }
+  }
+  return map;
+}
+
+// ---- Build label text from resolved SKUs ----
+function buildLabelText(skuList) {
+  // Group by product
+  const groups = {};
+  skuList.forEach(s => {
+    if (!s.matched || !s.product) return;
+    const prod = s.product;
+    if (!groups[prod]) groups[prod] = [];
+    const qty = s.qty || 1;
+    const size = s.size || '';
+    const color = s.color || '';
+    const entry = size + (color ? ' - ' + color : '');
+    for(let i=0;i<qty;i++) groups[prod].push(entry);
+  });
+  const lines = [];
+  Object.entries(groups).forEach(([prod, entries]) => {
+    lines.push(prod);
+    // Count entries
+    const cnt = {};
+    entries.forEach(e => cnt[e] = (cnt[e]||0)+1);
+    Object.entries(cnt).forEach(([entry, n]) => {
+      lines.push(`${n}x ${entry}`);
+    });
+  });
+  return lines.join('\n');
+}
+
+// ---- Main validation flow ----
+async function runValidation() {
+  if (pdfFiles.length === 0) return;
+  goStep(2);
+  // Loading state while we read and parse the PDFs
+  document.getElementById('validationTable').innerHTML =
+    `<div class="loading-wrap">
+       <div class="spinner"></div>
+       <div class="loading-title">Reading ${pdfFiles.length} file${pdfFiles.length>1?'s':''}…</div>
+       <div class="loading-sub">Extracting labels and matching SKUs against your database.</div>
+     </div>`;
+  parsedShipments = [];
+  loadedPdfDocs = [];
+  rawPdfBytes = [];
+  selectedSet = new Set();
+  carrierFilter = null;
+
+  // Load all PDFs
+  for (const file of pdfFiles) {
+    const arrayBuf = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuf);
+    rawPdfBytes.push(bytes);
+    const doc = await pdfjsLib.getDocument({data: bytes.slice()}).promise;
+    loadedPdfDocs.push(doc);
+  }
+
+  // Parse pages: label then 1-2 slips
+  // The shipping-label pages in these files are often rasterized images with
+  // NO extractable text, so we cannot rely on a label page "looking like" a
+  // label. Instead we identify SLIP pages (which always carry SKU markers) and
+  // treat every non-slip page as a label. Each label takes the slip page(s)
+  // that follow it, up to the next label.
+  function isSlipPage(text) {
+    const t = (text || '').toUpperCase();
+    // Packing-slip specific markers across Temu / TikTok / ShipStation
+    return (t.includes('PACKING SLIP') || t.includes('SUB TOTAL') ||
+            t.includes('CONTRIBUTION SKU') || t.includes('GOODS SKU') ||
+            t.includes('SELLER SKU') || t.includes('BUYER NICKNAME') ||
+            t.includes('QTY TOTAL') || t.includes('PURCHASE ORDER ID') ||
+            (t.includes('SKU') && t.includes('QTY')));
+  }
+
+  let fileIdx = 0;
+  for (const doc of loadedPdfDocs) {
+    const nPages = doc.numPages;
+
+    // 1) Read + classify every page once.
+    const pageInfo = []; // { num, text, isSlip, slipType, labelType?, items?, vp? }
+    for (let n = 1; n <= nPages; n++) {
+      const pg = await doc.getPage(n);
+      const text = await getPageText(pg);
+      const slip = isSlipPage(text);
+      const slipType = slip ? detectSlipType(text) : null;
+      const info = { num: n, page: pg, text, isSlip: slip && !!slipType, slipType };
+      if (info.isSlip) {
+        const it = await getPageTextItems(pg);
+        info.items = it.items; info.vp = it.vp;
+      } else {
+        // It's a label page. Try text first; if inconclusive (image-only UPS
+        // labels have no text layer), fall back to visual QR detection.
+        let lt = detectLabelTypeFromText(text);
+        if (!lt) lt = await detectLabelTypeVisual(pg);
+        info.labelType = lt;
+      }
+      pageInfo.push(info);
+    }
+
+    // 2) Group: each non-slip page is a label; following slip pages attach to it.
+    let idx = 0;
+    while (idx < pageInfo.length) {
+      const cur = pageInfo[idx];
+
+      if (cur.isSlip) {
+        // A slip with no preceding label (shouldn't normally happen). Record it
+        // on its own so its SKUs aren't lost, using the slip page as the label.
+        const slipPages = [cur];
+        let k = idx + 1;
+        while (k < pageInfo.length && pageInfo[k].isSlip && slipPages.length < 2) { slipPages.push(pageInfo[k]); k++; }
+        pushShipment(cur.num, cur.labelType || detectLabelTypeFromText(cur.text) || 'usps', slipPages);
+        idx = k;
+        continue;
+      }
+
+      // cur is a LABEL page. Collect the slip pages that follow it.
+      const slipPages = [];
+      let k = idx + 1;
+      while (k < pageInfo.length && pageInfo[k].isSlip && slipPages.length < 2) {
+        slipPages.push(pageInfo[k]);
+        k++;
+      }
+      pushShipment(cur.num, cur.labelType || 'usps', slipPages);
+      // Advance past this label and its slips. If no slips followed, just move
+      // to the next page (handles consecutive label pages gracefully).
+      idx = (k > idx + 1) ? k : idx + 1;
+    }
+    fileIdx++;
+  }
+
+  // Helper: build a shipment record from a label page and its slip pages.
+  function pushShipment(labelPageNum, labelType, slipPages) {
+    const allSKUs = [];
+    slipPages.forEach(sp => {
+      const lineItems = extractLineItems(sp);
+      lineItems.forEach(li => {
+        const rawSku = li.sku;
+        const matched = lookupSKU(rawSku);
+        allSKUs.push({
+          sku: rawSku,
+          raw: rawSku,
+          matched: !!matched,
+          product: matched ? matched.Product : '',
+          size: matched ? matched.Size : '',
+          color: matched ? matched.Color : '',
+          qty: li.qty || 1,
+          slipType: sp.slipType
+        });
+      });
+    });
+    parsedShipments.push({
+      fileIdx,
+      labelPageNum,
+      labelType,
+      slipPages: slipPages.map(sp => ({ pageNum: sp.num, text: sp.text, type: sp.slipType, page: sp.page, items: sp.items, vp: sp.vp })),
+      skus: allSKUs,
+      resolvedText: buildLabelText(allSKUs)
+    });
+  }
+
+  sortedShipments = [...parsedShipments];
+  renderValidationTable();
+  refreshStats();
+  document.getElementById('previewBtn').disabled = false;
+  document.getElementById('sortBtn').disabled = false;
+  document.getElementById('validationActions').style.display = '';
+  renderDBTable();
+  notify(`✓ ${parsedShipments.length} shipments processed`, 'ok');
+}
+
+// Update the side-panel counters from current shipment state.
+function refreshStats() {
+  if (!parsedShipments.length) return;
+  document.getElementById('sideStats').style.display = '';
+  document.getElementById('stTotal').textContent = parsedShipments.length;
+  const errs = parsedShipments.filter(s => s.skus.some(k => !k.matched) || s.skus.length === 0).length;
+  document.getElementById('stErrors').textContent = errs;
+}
+
+// Re-run SKU lookups against the CURRENT database for all already-parsed
+// shipments — no need to re-upload the PDF. Used after the user adds, edits,
+// imports, or deletes SKUs so the validation table updates live.
+function rematchAll() {
+  parsedShipments.forEach(s => {
+    s.skus.forEach(k => {
+      const m = lookupSKU(k.raw || k.sku);
+      if (m) {
+        k.matched = true;
+        k.product = m.Product; k.size = m.Size; k.color = m.Color;
+      }
+      // Note: we don't un-match entries already fixed manually in this session.
+    });
+    s.resolvedText = buildLabelText(s.skus);
+  });
+  // Keep any existing sort, but refresh the snapshot reference list.
+  if (sortedShipments.length) {
+    sortedShipments = sortedShipments.map(ss => parsedShipments.find(p => p === ss) || ss);
+  }
+}
+
+// If a PDF has already been validated this session, re-match after a DB change
+// (e.g. an Excel import) and tell the user what happened.
+function maybeRevalidate() {
+  if (!parsedShipments.length) return;
+  rematchAll();
+  refreshStats();
+  renderValidationTable();
+  const remaining = parsedShipments.filter(s => s.skus.length === 0 || s.skus.some(k => !k.matched)).length;
+  notify(remaining ? `Re-checked — ${remaining} still need fixing` : 'Re-checked — all SKUs matched', remaining ? 'err' : 'ok');
+}
+
+function renderValidationTable() {
+  if (!parsedShipments.length) {
+    document.getElementById('validationTable').innerHTML =
+      `<div class="empty">
+         <div class="empty-icon">🔍</div>
+         <h3>No shipments found</h3>
+         <p>We couldn't detect any shipping labels in the uploaded PDF. Check that the file contains labels followed by their packing slips, then try again.</p>
+         <button class="btn btn-ghost" onclick="goStep(1)">← Back to upload</button>
+       </div>`;
+    document.getElementById('errorTable').innerHTML = '';
+    return;
+  }
+  const tbody = parsedShipments.map((s, i) => {
+    const hasErr = s.skus.length === 0 || s.skus.some(k => !k.matched);
+    return `<tr class="${hasErr?'err-row':''}">
+      <td>${i+1}</td>
+      <td><span class="badge ${s.labelType==='fedex'?'badge-ok':s.labelType==='ups'?'badge-warn':'badge-ok'}">${s.labelType.toUpperCase()}</span></td>
+      <td>${s.slipPages.length > 0 ? s.slipPages.map(sp=>sp.type).join(', ') : '<span style="color:var(--red)">No slip</span>'}</td>
+      <td style="max-width:200px;">${s.skus.map(k=>`<span class="badge ${k.matched?'badge-ok':'badge-err'}" title="${escAttr(k.sku)}" style="cursor:help;">${escHtml(k.sku.substring(0,20))}${k.sku.length>20?'…':''}</span>`).join(' ')}</td>
+      <td style="white-space:pre-line;font-size:11px;color:var(--muted);">${s.resolvedText||'<span style="color:var(--red)">—</span>'}</td>
+      <td>${hasErr?`<button class="btn btn-yellow" style="font-size:11px;padding:4px 10px;" onclick="openFix(${i})">Fix</button>`:
+        `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="openFix(${i})">Edit</button>`}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('validationTable').innerHTML = `
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>#</th><th>Label</th><th>Slip</th><th>SKUs</th><th>Label Text</th><th>Action</th></tr></thead>
+      <tbody>${tbody}</tbody>
+    </table></div>`;
+
+  const errRows = parsedShipments.filter((s,i) => s.skus.length===0 || s.skus.some(k=>!k.matched));
+  if (errRows.length) {
+    document.getElementById('errorTable').innerHTML = `
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>#</th><th>Label</th><th>SKU</th><th>Issue</th><th>Fix</th></tr></thead>
+        <tbody>${parsedShipments.map((s,i)=>{
+          if (!s.skus.some(k=>!k.matched) && s.skus.length>0) return '';
+          return `<tr class="err-row"><td>${i+1}</td><td>${s.labelType}</td>
+            <td>${s.skus.length===0?'No SKU found':s.skus.filter(k=>!k.matched).map(k=>k.sku).join(', ')}</td>
+            <td style="color:var(--red)">${s.skus.length===0?'No packing slip detected':'SKU not in database'}</td>
+            <td><button class="btn btn-yellow" style="font-size:11px;padding:4px 10px;" onclick="openFix(${i})">Fix</button></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+  } else {
+    document.getElementById('errorTable').innerHTML = '<div class="empty"><div class="empty-icon">✅</div><h3>Everything matched</h3><p>All SKUs were found in your database. You can move on to preview and export.</p><button class="btn btn-primary" onclick="goStep(3)">Preview labels →</button></div>';
+  }
+}
+
+// ---- Fix modal ----
+async function openFix(shipIdx) {
+  currentFixIdx = shipIdx;
+  const s = parsedShipments[shipIdx];
+  document.getElementById('fixPageInfo').innerHTML = `Shipment #${shipIdx+1} · ${s.labelType.toUpperCase()} label · Page ${s.labelPageNum}`;
+  
+  // Render label page preview
+  const doc = loadedPdfDocs[s.fileIdx];
+  const page = await doc.getPage(s.labelPageNum);
+  const vp = page.getViewport({scale:1.0});
+  const canvas = document.createElement('canvas');
+  canvas.width = vp.width; canvas.height = vp.height;
+  await page.render({canvasContext: canvas.getContext('2d'), viewport: vp}).promise;
+  const prev = document.getElementById('fixPagePreview');
+  prev.innerHTML = ''; prev.appendChild(canvas);
+
+  // Show the packing slip as SELECTABLE text so the Order ID can be copied.
+  const slipEl = document.getElementById('fixSlipPreview');
+  if (s.slipPages && s.slipPages.length) {
+    slipEl.textContent = s.slipPages.map(sp => sp.text || '').join('\n\n──────────\n\n').trim()
+      || 'No packing-slip text found for this shipment.';
+  } else {
+    slipEl.textContent = 'No packing slip is attached to this shipment.';
+  }
+
+  // Fill SKU input with first unmatched
+  const errSku = s.skus.find(k=>!k.matched) || s.skus[0];
+  document.getElementById('fixSKUInput').value = errSku ? errSku.sku : '';
+  document.getElementById('fixProduct').value = errSku ? errSku.product : '';
+  document.getElementById('fixSize').value = errSku ? errSku.size : '';
+  document.getElementById('fixColor').value = errSku ? errSku.color : '';
+
+  // Populate product dropdown
+  const prods = [...new Set(Object.values(skuDB).map(v=>v.Product))].sort();
+  document.getElementById('fixProductSelect').innerHTML = '<option value="">— select product —</option>' + prods.map(p=>`<option value="${p}">${p}</option>`).join('');
+
+  // Suggestions
+  const skuVal = errSku ? errSku.sku : '';
+  const suggs = Object.keys(skuDB).filter(k => k.toLowerCase().includes(skuVal.toLowerCase().substring(0,6))).slice(0,5);
+  document.getElementById('fixSKUSuggestions').innerHTML = suggs.length ? '<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Suggestions:</div>' + suggs.map(s=>`<button onclick="useSugg('${s.replace(/'/g,"\\'")}');return false;" class="btn btn-ghost" style="font-size:11px;padding:3px 8px;margin:2px;">${s}</button>`).join('') : '';
+
+  document.getElementById('fixModal').style.display = 'flex';
+}
+
+function useSugg(sku) {
+  document.getElementById('fixSKUInput').value = sku;
+  const m = lookupSKU(sku);
+  if (m) { document.getElementById('fixProduct').value = m.Product; document.getElementById('fixSize').value = m.Size; document.getElementById('fixColor').value = m.Color; }
+}
+
+function prefillFromProduct() {
+  const prod = document.getElementById('fixProductSelect').value;
+  if (!prod) return;
+  const match = Object.values(skuDB).find(v=>v.Product===prod);
+  if (match) { document.getElementById('fixProduct').value = match.Product; document.getElementById('fixSize').value = match.Size; document.getElementById('fixColor').value = match.Color; }
+}
+
+function applyFix() {
+  const s = parsedShipments[currentFixIdx];
+  const sku = document.getElementById('fixSKUInput').value.trim();
+  const product = document.getElementById('fixProduct').value.trim();
+  const size = document.getElementById('fixSize').value.trim();
+  const color = document.getElementById('fixColor').value.trim();
+  
+  if (!product) { notify('Enter a product name', 'err'); return; }
+  
+  // Save to DB
+  if (document.getElementById('fixSaveDB').checked && sku) {
+    skuDB[sku] = { Product: product, Size: size, Color: color };
+    document.getElementById('skuCount').textContent = `✓ ${Object.keys(skuDB).length} SKUs`;
+    updateSkuCountDisplays();
+    persistSkuDB();
+  }
+
+  // Apply to all SKUs in this shipment that match the raw
+  s.skus.forEach(k => {
+    if (k.sku === sku || !k.matched) {
+      k.matched = true;
+      k.product = product;
+      k.size = size;
+      k.color = color;
+    }
+  });
+  
+  // If shipment had no SKUs, add one
+  if (s.skus.length === 0) {
+    s.skus.push({ sku, raw: sku, matched: true, product, size, color, qty: 1 });
+  }
+  
+  s.resolvedText = buildLabelText(s.skus);
+  // Re-match every OTHER shipment too: the same missing SKU may appear on
+  // several labels, so saving it once should resolve all of them.
+  if (document.getElementById('fixSaveDB').checked && sku) rematchAll();
+  closeModal('fixModal');
+  renderValidationTable();
+  refreshStats();
+  notify('Fix applied!', 'ok');
+}
+
+// ---- DB Table ----
+let dbFilter = '';
+function renderDBTable(filter='') {
+  const entries = Object.entries(skuDB).filter(([k,v]) => {
+    if (!filter) return true;
+    const f = filter.toLowerCase();
+    return k.toLowerCase().includes(f) || v.Product.toLowerCase().includes(f) || v.Size.toLowerCase().includes(f) || v.Color.toLowerCase().includes(f);
+  });
+  const rows = entries.slice(0,200).map(([sku,v]) => `<tr>
+    <td style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:help;" title="${escAttr(sku)}">${escHtml(sku)}</td>
+    <td><input class="inline-input" value="${v.Product}" onchange="updateDBRow('${sku.replace(/'/g,"\\'")}','Product',this.value)"></td>
+    <td><input class="inline-input" value="${v.Size}" onchange="updateDBRow('${sku.replace(/'/g,"\\'")}','Size',this.value)"></td>
+    <td><input class="inline-input" value="${v.Color}" onchange="updateDBRow('${sku.replace(/'/g,"\\'")}','Color',this.value)"></td>
+    <td><button class="btn btn-red" style="font-size:10px;padding:2px 8px;" onclick="deleteSKU('${sku.replace(/'/g,"\\'")}')">✕</button></td>
+  </tr>`).join('');
+  document.getElementById('dbTable').innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Showing ${entries.slice(0,200).length} of ${entries.length} entries</div>
+    <div class="tbl-wrap scroll-list"><table>
+      <thead><tr><th>SKU</th><th>Product</th><th>Size</th><th>Color</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+function filterDB(val) { dbFilter = val; renderDBTable(val); }
+function updateDBRow(sku, field, val) {
+  if (skuDB[sku]) { skuDB[sku][field] = val; persistSkuDB(); rematchAll(); refreshStats(); renderValidationTable(); }
+}
+function deleteSKU(sku) {
+  delete skuDB[sku];
+  if (builtinKeys.has(sku)) deletedBuiltins.add(sku); // remember across refresh
+  persistSkuDB();
+  renderDBTable(dbFilter);
+  updateSkuCountDisplays();
+  rematchAll(); refreshStats(); renderValidationTable();
+  notify('SKU deleted', 'ok');
+}
+function openAddSKU() { document.getElementById('newSKU').value=''; document.getElementById('newProduct').value=''; document.getElementById('newSize').value=''; document.getElementById('newColor').value=''; document.getElementById('addSKUModal').style.display='flex'; }
+function saveNewSKU() {
+  const sku = document.getElementById('newSKU').value.trim();
+  if (!sku) { notify('SKU is required', 'err'); return; }
+  skuDB[sku] = { Product: document.getElementById('newProduct').value.trim(), Size: document.getElementById('newSize').value.trim(), Color: document.getElementById('newColor').value.trim() };
+  deletedBuiltins.delete(sku); // re-adding a previously deleted SKU
+  persistSkuDB();
+  renderDBTable(dbFilter);
+  updateSkuCountDisplays();
+  closeModal('addSKUModal');
+  rematchAll(); refreshStats(); renderValidationTable();
+  notify('SKU saved!', 'ok');
+}
+function exportDBExcel() {
+  const rows = Object.entries(skuDB).map(([k,v]) => ({SKU:k, Product:v.Product, Size:v.Size, Color:v.Color}));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'DATA');
+  XLSX.writeFile(wb, 'SKU_DATA_export.xlsx');
+}
+
+// ---- Sort ----
+function sortLabels() {
+  sortedShipments = [...parsedShipments].sort((a,b) => {
+    const ta = (a.resolvedText||'').toLowerCase();
+    const tb = (b.resolvedText||'').toLowerCase();
+    return ta.localeCompare(tb);
+  });
+  notify('Labels sorted by Product-Size-Color', 'ok');
+  if (document.getElementById('previewGrid').children.length > 0) renderPreview();
+}
+
+// ---- Preview ----
+async function proceedToPreview() {
+  goStep(3);
+  await renderPreview();
+}
+async function renderPreview() {
+  const grid = document.getElementById('previewGrid');
+  const fullList = sortedShipments.length > 0 ? sortedShipments : parsedShipments;
+  if (!fullList.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">🏷️</div><h3>Nothing to preview yet</h3><p>Upload a PDF and validate it first — your labels will appear here with product info drawn on.</p><button class="btn btn-ghost" onclick="goStep(1)">← Back to upload</button></div>`;
+    return;
+  }
+  // Apply carrier filter (if any). Keep each label's true position number.
+  const display = fullList
+    .map((s, i) => ({ s, num: i + 1 }))
+    .filter(e => !carrierFilter || e.s.labelType === carrierFilter);
+
+  updateFilterChip(fullList);
+
+  if (!display.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><h3>No ${carrierFilter ? carrierFilter.toUpperCase() : ''} labels</h3><p>There are no labels matching this filter.</p><button class="btn btn-ghost" onclick="setCarrierFilter(null)">Show all labels</button></div>`;
+    updateSelectToolbar();
+    return;
+  }
+
+  grid.innerHTML = `<div class="loading-wrap"><div class="spinner"></div><div class="loading-title">Rendering ${display.length} label${display.length>1?'s':''}…</div><div class="loading-sub">Drawing product details onto each label.</div></div>`;
+  const cards = [];
+  for (const e of display) {
+    cards.push(await buildPreviewCard(e.s, e.num - 1));
+  }
+  grid.innerHTML = '';
+  cards.forEach(c => grid.appendChild(c));
+  updateSelectToolbar();
+}
+
+// Build (or rebuild) a single preview card for shipment `s` at display index `i`.
+async function buildPreviewCard(s, i) {
+  const doc = loadedPdfDocs[s.fileIdx];
+  const page = await doc.getPage(s.labelPageNum);
+  const vp = page.getViewport({scale:0.5});
+  const canvas = document.createElement('canvas');
+  canvas.width = vp.width; canvas.height = vp.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({canvasContext: ctx, viewport: vp}).promise;
+  if (s.resolvedText) drawTextOnCanvas(ctx, s.resolvedText, s, vp.scale);
+
+  const realIdx = parsedShipments.indexOf(s);
+  const card = document.createElement('div');
+  const isSel = selectedSet.has(realIdx);
+  card.className = 'preview-card' + (isSel ? ' selected' : '');
+  card.id = 'pcard-' + realIdx;
+  card.appendChild(canvas);
+
+  const info = document.createElement('div');
+  info.className = 'preview-card-info';
+  const moved = s.posOverride && (s.posOverride.x!=null||s.posOverride.y!=null||s.posOverride.fs!=null);
+  info.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+      <label style="display:flex;align-items:center;gap:5px;flex:1;cursor:pointer;font-weight:600;">
+        <input type="checkbox" ${isSel?'checked':''} onchange="toggleSelect(${realIdx}, this.checked)" style="width:auto;cursor:pointer;">
+        #${i+1}${moved?' <span title="Custom position" style="color:var(--accent);font-size:10px;">⟐ moved</span>':''}
+      </label>
+      <span style="font-size:10px;color:var(--muted);">Type:</span>
+      <select onchange="overrideLabelType(${realIdx}, this.value)" style="padding:2px 6px;font-size:11px;width:auto;background:var(--bg);">
+        <option value="fedex" ${s.labelType==='fedex'?'selected':''}>FedEx</option>
+        <option value="ups" ${s.labelType==='ups'?'selected':''}>UPS</option>
+        <option value="usps" ${s.labelType==='usps'?'selected':''}>USPS</option>
+      </select>
+    </div>
+    <div style="font-size:11px;margin-bottom:6px;">${escHtml(s.resolvedText.split('\n')[0]||'No text')}</div>
+    <button class="btn ${isSel?'btn-primary':'btn-ghost'}" style="width:100%;font-size:11px;padding:5px;" onclick="adjustThisLabel(${realIdx})">
+      ${isSel?'✓ Selected — adjust':'📐 Adjust position'}
+    </button>`;
+  card.appendChild(info);
+  return card;
+}
+
+// Re-render just one card in place (fast, used while dragging position inputs).
+async function rerenderCard(realIdx) {
+  const old = document.getElementById('pcard-' + realIdx);
+  if (!old) return;
+  const s = parsedShipments[realIdx];
+  const list = sortedShipments.length > 0 ? sortedShipments : parsedShipments;
+  const dispIdx = list.indexOf(s);
+  const fresh = await buildPreviewCard(s, dispIdx >= 0 ? dispIdx : realIdx);
+  old.replaceWith(fresh);
+}
+
+// Text positions in points (72 pt = 1 inch)
+// ---- Live text position settings ----
+function getV(id, def) { const el = document.getElementById(id); return el ? (parseFloat(el.value) || def) : def; }
+
+function getTextPos() {
+  return {
+    fedex: { x: getV('pos_fedex_x', 1.72) * 72, y: getV('pos_fedex_y', 3.75) * 72, fs: getV('fs_fedex', 7.5) },
+    ups:   { x: getV('pos_ups_x',   3.01) * 72, y: getV('pos_ups_y',   1.42) * 72, fs: getV('fs_ups',   7.5) },
+    usps:  { x: getV('pos_usps_x',  2.65) * 72, y: getV('pos_usps_y',  1.7) * 72, fs: getV('fs_usps',  8) },
+  };
+}
+
+function getPosFor(labelType) {
+  const p = getTextPos();
+  return p[labelType] || p['usps'];
+}
+
+// Effective position for a specific shipment: a per-label override wins over
+// the carrier default. Override stores inches for x/y and pt for fs.
+function getEffectivePos(shipment) {
+  const base = getPosFor(shipment.labelType);
+  const ov = shipment.posOverride;
+  if (ov && (ov.x != null || ov.y != null || ov.fs != null)) {
+    return {
+      x: (ov.x != null ? ov.x * 72 : base.x),
+      y: (ov.y != null ? ov.y * 72 : base.y),
+      fs: (ov.fs != null ? ov.fs : base.fs)
+    };
+  }
+  return base;
+}
+
+let _previewTimer = null;
+function updatePos() {
+  // Debounce: wait 300ms after last keystroke then refresh preview
+  clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(() => {
+    if (parsedShipments.length > 0 && document.getElementById('step3').style.display !== 'none') {
+      renderPreview();
+    }
+  }, 300);
+}
+
+// ---- Multi-label position override (slide panel) ----
+// selectedSet holds the realIdx of every shipment currently selected for
+// position editing. The slide panel edits ALL of them at once.
+
+function updateSelectToolbar() {
+  const n = selectedSet.size;
+  const cntEl = document.getElementById('selectCount');
+  if (cntEl) cntEl.textContent = `${n} selected`;
+  const btn = document.getElementById('adjustSelectedBtn');
+  if (btn) btn.disabled = n === 0;
+}
+
+function toggleSelect(realIdx, checked) {
+  if (checked) selectedSet.add(realIdx); else selectedSet.delete(realIdx);
+  updateSelectToolbar();
+  // update just this card's highlight + button
+  rerenderCard(realIdx);
+  // if the panel is open, refresh its subtitle/inputs for the new selection
+  if (isPanelOpen()) refreshPanelForSelection();
+}
+
+function selectAllLabels() {
+  carrierFilter = null; // show everything when selecting all
+  parsedShipments.forEach((s, i) => selectedSet.add(i));
+  updateSelectToolbar(); renderPreview();
+}
+function selectByCarrier(type) {
+  // Filter the grid to this carrier AND select those labels for repositioning.
+  carrierFilter = type;
+  selectedSet.clear();
+  parsedShipments.forEach((s, i) => { if (s.labelType === type) selectedSet.add(i); });
+  updateSelectToolbar(); renderPreview();
+  notify(`Showing & selected ${selectedSet.size} ${type.toUpperCase()} labels`, 'ok');
+}
+// Set/clear the carrier filter without changing the selection.
+function setCarrierFilter(type) {
+  carrierFilter = type;
+  renderPreview();
+}
+function clearSelection() {
+  selectedSet.clear();
+  carrierFilter = null; // also clear the filter so all labels show again
+  updateSelectToolbar();
+  closePositionPanel();
+  renderPreview();
+}
+
+// Show a small "filtering" indicator + Show-all button in the toolbar.
+function updateFilterChip(fullList) {
+  const el = document.getElementById('filterChip');
+  if (!el) return;
+  if (carrierFilter) {
+    const shown = fullList.filter(s => s.labelType === carrierFilter).length;
+    el.innerHTML = `<span style="color:var(--accent);">Showing ${carrierFilter.toUpperCase()} only (${shown})</span> <button class="btn btn-ghost btn-sm" onclick="setCarrierFilter(null)">Show all</button>`;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+    el.innerHTML = '';
+  }
+}
+
+// "Adjust position" on a single card: select just that one and open the panel.
+function adjustThisLabel(realIdx) {
+  if (!selectedSet.has(realIdx)) selectedSet.add(realIdx);
+  updateSelectToolbar();
+  renderPreview();
+  openPanelForSelection();
+}
+
+function openPanelForSelection() {
+  if (selectedSet.size === 0) { notify('Select at least one label', 'err'); return; }
+  refreshPanelForSelection();
+  document.getElementById('posPanel').classList.add('open');
+  document.getElementById('posPanelOverlay').classList.add('open');
+}
+
+function isPanelOpen() { return document.getElementById('posPanel').classList.contains('open'); }
+
+// Populate the panel header + inputs based on the current selection.
+function refreshPanelForSelection() {
+  const idxs = [...selectedSet];
+  if (!idxs.length) return;
+  const list = sortedShipments.length ? sortedShipments : parsedShipments;
+  // Subtitle: list the selected label numbers (capped)
+  const nums = idxs.map(ix => list.indexOf(parsedShipments[ix]) + 1).filter(n=>n>0).sort((a,b)=>a-b);
+  let label;
+  if (idxs.length === 1) {
+    const s = parsedShipments[idxs[0]];
+    label = `Label #${nums[0]} · ${s.labelType.toUpperCase()}`;
+  } else {
+    label = `${idxs.length} labels selected (#${nums.slice(0,6).join(', #')}${nums.length>6?'…':''})`;
+  }
+  document.getElementById('posPanelSubtitle').textContent = label;
+
+  // Carrier-apply button label: show carrier if all same, else "same-carrier"
+  const carriers = new Set(idxs.map(ix => parsedShipments[ix].labelType));
+  document.getElementById('ovCarrierName').textContent =
+    carriers.size === 1 ? [...carriers][0].toUpperCase() : 'same-carrier';
+
+  // Prefill inputs from the FIRST selected label's effective position.
+  const eff = getEffectivePos(parsedShipments[idxs[0]]);
+  document.getElementById('ov_x').value = (eff.x / 72).toFixed(2);
+  document.getElementById('ov_y').value = (eff.y / 72).toFixed(2);
+  document.getElementById('ov_fs').value = (eff.fs || 8);
+
+  // Hint text reflects single vs multi
+  const hintEl = document.getElementById('posPanelHint');
+  if (hintEl) hintEl.innerHTML = idxs.length === 1
+    ? 'Adjusting moves the product text on <strong>this one label only</strong>. The preview updates as you type.'
+    : `Adjusting moves the product text on <strong>all ${idxs.length} selected labels</strong>. The preview updates as you type.`;
+}
+
+function closePositionPanel() {
+  document.getElementById('posPanel').classList.remove('open');
+  document.getElementById('posPanelOverlay').classList.remove('open');
+}
+
+// Apply current panel inputs to EVERY selected shipment, redraw their cards.
+let _ovTimer = null;
+function onOverrideInput() {
+  const idxs = [...selectedSet];
+  if (!idxs.length) return;
+  const x = parseFloat(document.getElementById('ov_x').value);
+  const y = parseFloat(document.getElementById('ov_y').value);
+  const fs = parseFloat(document.getElementById('ov_fs').value);
+  const ov = {
+    x: isNaN(x) ? null : x,
+    y: isNaN(y) ? null : y,
+    fs: isNaN(fs) ? null : fs
+  };
+  idxs.forEach(ix => { parsedShipments[ix].posOverride = { ...ov }; });
+  clearTimeout(_ovTimer);
+  _ovTimer = setTimeout(() => { idxs.forEach(ix => rerenderCard(ix)); }, 120);
+}
+
+// Stepper buttons nudge a field and apply immediately to all selected.
+function nudgePos(field, delta) {
+  if (!selectedSet.size) return;
+  const id = field === 'fs' ? 'ov_fs' : 'ov_' + field;
+  const el = document.getElementById(id);
+  const cur = parseFloat(el.value) || 0;
+  el.value = (cur + delta).toFixed(field === 'fs' ? 1 : 2);
+  onOverrideInput();
+}
+
+function resetOverride() {
+  const idxs = [...selectedSet];
+  if (!idxs.length) return;
+  idxs.forEach(ix => { delete parsedShipments[ix].posOverride; });
+  const eff = getEffectivePos(parsedShipments[idxs[0]]);
+  document.getElementById('ov_x').value = (eff.x / 72).toFixed(2);
+  document.getElementById('ov_y').value = (eff.y / 72).toFixed(2);
+  document.getElementById('ov_fs').value = (eff.fs || 8);
+  idxs.forEach(ix => rerenderCard(ix));
+  notify(`Reset ${idxs.length} label${idxs.length>1?'s':''} to carrier default`, 'ok');
+}
+
+function applyOverrideToSameCarrier() {
+  const idxs = [...selectedSet];
+  if (!idxs.length) { notify('Select a label first', 'err'); return; }
+  const src = parsedShipments[idxs[0]];
+  if (!src.posOverride) { notify('Set a custom position first', 'err'); return; }
+  const carrier = src.labelType;
+  let n = 0;
+  parsedShipments.forEach(s => {
+    if (s.labelType === carrier) { s.posOverride = { ...src.posOverride }; n++; }
+  });
+  renderPreview();
+  notify(`Applied to ${n} ${carrier.toUpperCase()} labels`, 'ok');
+}
+
+function applyOverrideToAll() {
+  const idxs = [...selectedSet];
+  if (!idxs.length) { notify('Select a label first', 'err'); return; }
+  const src = parsedShipments[idxs[0]];
+  if (!src.posOverride) { notify('Set a custom position first', 'err'); return; }
+  parsedShipments.forEach(s => { s.posOverride = { ...src.posOverride }; });
+  renderPreview();
+  notify(`Applied to all ${parsedShipments.length} labels`, 'ok');
+}
+
+function refreshPreview() {
+  if (parsedShipments.length > 0) renderPreview();
+}
+
+// Manually override a shipment's detected label type (in case auto-detect was wrong)
+function overrideLabelType(shipIdx, newType) {
+  if (parsedShipments[shipIdx]) {
+    parsedShipments[shipIdx].labelType = newType;
+    renderPreview();
+    notify(`Label #${shipIdx+1} set to ${newType.toUpperCase()}`, 'ok');
+  }
+}
+
+const DEFAULT_POS = { fedex_x:1.72, fedex_y:3.65, ups_x:3.01, ups_y:1.42, usps_x:2.65, usps_y:1.7, fs_fedex:7.5, fs_ups:7.5, fs_usps:8 };
+
+// ---- Preset Keys (field id -> localStorage key mapping) ----
+const POS_FIELDS = ['fedex_x','fedex_y','ups_x','ups_y','usps_x','usps_y','fs_fedex','fs_ups','fs_usps'];
+
+function getCurrentValues() {
+  const vals = {};
+  POS_FIELDS.forEach(k => {
+    const el = document.getElementById(k.startsWith('fs') ? k : 'pos_' + k);
+    vals[k] = el ? parseFloat(el.value) : DEFAULT_POS[k];
+  });
+  return vals;
+}
+
+function applyValues(vals) {
+  POS_FIELDS.forEach(k => {
+    const el = document.getElementById(k.startsWith('fs') ? k : 'pos_' + k);
+    if (el && vals[k] !== undefined) el.value = vals[k];
+  });
+  updatePos();
+}
+
+// ---- localStorage preset storage ----
+const PRESET_STORE_KEY = 'labelsku_presets';
+
+function loadAllPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESET_STORE_KEY) || '{}'); }
+  catch(e) { return {}; }
+}
+
+function saveAllPresets(presets) {
+  try { localStorage.setItem(PRESET_STORE_KEY, JSON.stringify(presets)); } catch(e) {}
+}
+
+function savePreset() {
+  const name = document.getElementById('presetNameInput').value.trim();
+  if (!name) { notify('Enter a preset name first', 'err'); return; }
+  const presets = loadAllPresets();
+  presets[name] = getCurrentValues();
+  saveAllPresets(presets);
+  document.getElementById('presetNameInput').value = '';
+  renderPresetList();
+  notify(`Preset "${name}" saved!`, 'ok');
+}
+
+function loadPreset(name) {
+  const presets = loadAllPresets();
+  if (!presets[name]) return;
+  applyValues(presets[name]);
+  notify(`Preset "${name}" loaded`, 'ok');
+}
+
+function deletePreset(name) {
+  const presets = loadAllPresets();
+  delete presets[name];
+  saveAllPresets(presets);
+  renderPresetList();
+  notify(`Preset "${name}" deleted`, 'ok');
+}
+
+function renderPresetList() {
+  const presets = loadAllPresets();
+  const list = document.getElementById('presetList');
+  if (!list) return;
+  const keys = Object.keys(presets);
+  if (keys.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:4px 0;">No saved presets yet.</div>';
+    return;
+  }
+  list.innerHTML = keys.map(name => {
+    const v = presets[name];
+    const summary = `FX:${v.fedex_x},${v.fedex_y} | UP:${v.ups_x},${v.ups_y} | US:${v.usps_x},${v.usps_y}`;
+    return `<div style="display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:6px 8px;">
+      <div style="flex:1;overflow:hidden;">
+        <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;">${summary}</div>
+      </div>
+      <button class="btn btn-primary" style="font-size:10px;padding:3px 8px;" onclick="loadPreset('${name.replace(/'/g,"\\'")}')">Load</button>
+      <button class="btn btn-red" style="font-size:10px;padding:3px 8px;" onclick="deletePreset('${name.replace(/'/g,"\\'")}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function resetPositions() {
+  applyValues(DEFAULT_POS);
+  notify('Positions reset to defaults', 'ok');
+}
+
+// ---- Settings modal ----
+function openSettings() {
+  renderPresetList();
+  updateSkuCountDisplays();
+  document.getElementById('settingsModal').style.display = 'flex';
+}
+
+// ---- Collapsible side rail ----
+function toggleRail() {
+  const main = document.querySelector('.main');
+  const toggle = document.getElementById('railToggle');
+  const collapsed = main.classList.toggle('rail-collapsed');
+  toggle.classList.toggle('collapsed', collapsed);
+  toggle.innerHTML = collapsed ? '›' : '‹';
+  toggle.title = collapsed ? 'Show panel' : 'Hide panel';
+}
+
+// Keep both SKU-count labels (modal hint + import zone) in sync
+function updateSkuCountDisplays() {
+  const n = Object.keys(skuDB).length;
+  const hint = document.getElementById('skuDbCount');
+  if (hint) hint.textContent = `${n} SKUs currently loaded.`;
+}
+
+// Close any open modal with Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-bg').forEach(m => {
+      if (m.style.display === 'flex') m.style.display = 'none';
+    });
+    if (document.getElementById('posPanel').classList.contains('open')) closePositionPanel();
+  }
+});
+
+// Load presets on startup
+document.addEventListener('DOMContentLoaded', renderPresetList);
+
+function drawTextOnCanvas(ctx, text, shipment, scale) {
+  const pos = getEffectivePos(shipment);
+  const x = pos.x * scale;
+  const y = pos.y * scale;
+  const fs = (pos.fs || 8) * scale;
+  ctx.save();
+  ctx.font = `bold ${fs}px Arial`;
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  const lines = text.split('\n');
+  lines.forEach((line, li) => {
+    ctx.fillText(line, x, y + li * (fs + 2));
+  });
+  ctx.restore();
+}
+
+// ---- Generate Final PDF ----
+async function generateFinalPDF(includeSlips = true) {
+  notify('Generating PDF…', 'ok');
+  const { PDFDocument, rgb, StandardFonts } = PDFLib;
+  
+  const list = sortedShipments.length > 0 ? sortedShipments : parsedShipments;
+  const outputDoc = await PDFDocument.create();
+  const font = await outputDoc.embedFont(StandardFonts.HelveticaBold);
+  
+  // Load each source PDF with pdf-lib
+  const pdfLibDocs = [];
+  for (const bytes of rawPdfBytes) {
+    const doc = await PDFDocument.load(bytes);
+    pdfLibDocs.push(doc);
+  }
+
+  for (const s of list) {
+    const srcDoc = pdfLibDocs[s.fileIdx];
+    const srcPages = srcDoc.getPages();
+    
+    // Copy label page
+    const [labelPage] = await outputDoc.copyPages(srcDoc, [s.labelPageNum - 1]);
+    outputDoc.addPage(labelPage);
+    
+    // Write text on label using live position settings
+    if (s.resolvedText) {
+      const pos = getEffectivePos(s);
+      const fs = pos.fs || 8;
+      const pageH = labelPage.getHeight();
+      const lines = s.resolvedText.split('\n');
+      lines.forEach((line, li) => {
+        const yPt = pageH - pos.y - li * (fs + 1.5);
+        try {
+          labelPage.drawText(line, {
+            x: pos.x,
+            y: yPt,
+            size: fs,
+            font,
+            color: rgb(0,0,0),
+          });
+        } catch(e) {}
+      });
+    }
+
+    // Copy slip pages only when requested
+    if (includeSlips) {
+      for (const sp of s.slipPages) {
+        const [slipPage] = await outputDoc.copyPages(srcDoc, [sp.pageNum - 1]);
+        outputDoc.addPage(slipPage);
+      }
+    }
+  }
+
+  const pdfBytes = await outputDoc.save();
+  const name = includeSlips ? 'labels_with_packing_slips.pdf' : 'labels_only.pdf';
+  downloadBlob(pdfBytes, name, 'application/pdf');
+  notify(includeSlips ? 'Labels + slips downloaded!' : 'Labels downloaded!', 'ok');
+  goStep(4);
+}
+
+// ---- Generate Report ----
+async function generateReport() {
+  const { PDFDocument, rgb, StandardFonts } = PDFLib;
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+  
+  const list = sortedShipments.length > 0 ? sortedShipments : parsedShipments;
+
+  // Aggregate
+  const prodMap = {};
+  list.forEach(s => {
+    s.skus.forEach(k => {
+      if (!k.matched || !k.product) return;
+      const key = k.product;
+      if (!prodMap[key]) prodMap[key] = { qty: 0, parcels: 0 };
+      prodMap[key].qty += k.qty || 1;
+    });
+    // Count parcel
+    const prods = [...new Set(s.skus.filter(k=>k.matched&&k.product).map(k=>k.product))];
+    prods.forEach(p => { if(prodMap[p]) prodMap[p].parcels++; });
+  });
+
+  let page = doc.addPage([595, 842]);
+  let y = 800;
+  const draw = (text, x, fontSize, isBold) => {
+    page.drawText(text, { x, y, size: fontSize, font: isBold ? boldFont : font, color: rgb(0,0,0) });
+    y -= fontSize + 4;
+  };
+
+  y = 780; draw('SHIPMENT SUMMARY REPORT', 50, 18, true);
+  draw(`Generated: ${new Date().toLocaleString()}`, 50, 10, false);
+  draw(`Total Shipments: ${list.length}`, 50, 10, false);
+  y -= 10;
+  
+  // Header
+  page.drawRectangle({ x: 40, y: y - 4, width: 515, height: 20, color: rgb(0.2, 0.3, 0.8) });
+  page.drawText('Product', { x: 50, y: y, size: 10, font: boldFont, color: rgb(1,1,1) });
+  page.drawText('Total Qty', { x: 380, y: y, size: 10, font: boldFont, color: rgb(1,1,1) });
+  page.drawText('Parcels', { x: 470, y: y, size: 10, font: boldFont, color: rgb(1,1,1) });
+  y -= 20;
+
+  let totalQty = 0, totalParcels = 0, row = 0;
+  Object.entries(prodMap).sort().forEach(([prod, d]) => {
+    if (y < 60) { page = doc.addPage([595,842]); y = 780; }
+    if (row % 2 === 0) page.drawRectangle({ x: 40, y: y-4, width: 515, height: 18, color: rgb(0.95,0.95,0.98) });
+    page.drawText(prod.substring(0,45), { x: 50, y: y, size: 9, font, color: rgb(0,0,0) });
+    page.drawText(String(d.qty), { x: 400, y: y, size: 9, font, color: rgb(0,0,0) });
+    page.drawText(String(d.parcels), { x: 490, y: y, size: 9, font, color: rgb(0,0,0) });
+    totalQty += d.qty; totalParcels += d.parcels; y -= 18; row++;
+  });
+  
+  y -= 8;
+  page.drawLine({ start:{x:40,y:y+4}, end:{x:555,y:y+4}, thickness:1, color: rgb(0,0,0) });
+  page.drawText('TOTAL', { x: 50, y: y-6, size: 10, font: boldFont, color: rgb(0,0,0) });
+  page.drawText(String(totalQty), { x: 400, y: y-6, size: 10, font: boldFont, color: rgb(0,0,0) });
+  page.drawText(String(totalParcels), { x: 490, y: y-6, size: 10, font: boldFont, color: rgb(0,0,0) });
+
+  const bytes = await doc.save();
+  downloadBlob(bytes, 'shipment_report.pdf', 'application/pdf');
+  notify('Report downloaded!', 'ok');
+}
+
+// ---- Helpers ----
+// Escape text for safe rendering inside element content
+function escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+// Escape text for safe use inside a double-quoted HTML attribute (e.g. title="…")
+function escAttr(s) {
+  return escHtml(s).replace(/"/g, '&quot;');
+}
+
+function downloadBlob(data, name, mime) {
+  const blob = new Blob([data], {type: mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function goStep(n) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById(`step${i}`).style.display = i===n?'':'none';
+    const btn = document.getElementById(`sbtn${i}`);
+    btn.classList.toggle('active', i===n);
+    btn.classList.toggle('done', i<n);
+  });
+}
+
+function showTab(id) {
+  ['valAll','valErrors','valDB'].forEach(t => document.getElementById(t).style.display = t===id?'':'none');
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['valAll','valErrors','valDB'][i]===id));
+}
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function notify(msg, type='ok') {
+  const el = document.createElement('div');
+  el.className = `notif notif-${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// Init
+initDB();
+renderPresetList();
+updateSkuCountDisplays();
+</script>
+</body>
+</html>
